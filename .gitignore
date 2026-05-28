@@ -1,0 +1,13 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# PHPStorm / VSCode
+.idea/
+.vscode/
+
+# Composer (if we use it later)
+vendor/
+
+# Sensitive config
+config/database.php
