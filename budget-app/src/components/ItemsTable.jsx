@@ -61,7 +61,7 @@ function ItemsTable({ items, onHoldChange }) {
               ) : (
                 <button
                   className="btn btn-sm btn-primary"
-                  onClick={() => startEditing(item)}
+                  onClick={() => onEdit(item)}
                 >
                   Edit
                 </button>
