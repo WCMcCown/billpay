@@ -59,19 +59,21 @@ function ItemsTable({ items, onHoldChange }) {
                   Save
                 </button>
               ) : (
-                <button
-                  className="btn btn-sm btn-primary"
-                  onClick={() => onEdit(item)}
-                >
-                  Edit
-                </button>
-               ) : (
-                <button
-                  className="btn btn-sm btn-outline-secondary ms-2"
-                  onClick={() => onHistory(item)}
-                >
-                  History
-                </button>
+                <>
+                  <button
+                    className="btn btn-sm btn-primary"
+                    onClick={() => onEdit(item)}
+                  >
+                    Edit
+                  </button>
+
+                  <button
+                    className="btn btn-sm btn-outline-secondary ms-2"
+                    onClick={() => onHistory(item)}
+                  >
+                    History
+                  </button>
+                </>
               )}
             </td>
           </tr>
