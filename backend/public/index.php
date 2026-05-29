@@ -30,7 +30,7 @@
             <h1 class="mb-4">Welcome to BillPay</h1>
             <p class="lead">Your personal cash‑flow and debt‑reduction planner.</p>
 
-            <a href="#" class="btn btn-primary btn-lg mt-3">Get Started</a>
+            <a href="login.php" class="btn btn-primary btn-lg mt-3">Get Started</a>
         </div>
     </div>
 
