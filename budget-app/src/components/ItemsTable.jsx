@@ -65,6 +65,13 @@ function ItemsTable({ items, onHoldChange }) {
                 >
                   Edit
                 </button>
+               ) : (
+                <button
+                  className="btn btn-sm btn-outline-secondary ms-2"
+                  onClick={() => onHistory(item)}
+                >
+                  History
+                </button>
               )}
             </td>
           </tr>

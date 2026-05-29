@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import ItemsTable from "./components/ItemsTable";
 import EditItemModal from "./components/EditItemModal";
+import PaymentHistoryModal from "./components/PaymentHistoryModal";
+
 
 function App() {
   const [items, setItems] = useState([]);
@@ -8,6 +10,8 @@ function App() {
   // Modal state
   const [editingItem, setEditingItem] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [historyItem, setHistoryItem] = useState(null);
+  const [showHistory, setShowHistory] = useState(false);
 
   // Load items from backend
   const loadItems = () => {
@@ -44,6 +48,16 @@ function App() {
     setEditingItem(null);
   };
 
+  const openHistory = (item) => {
+    setHistoryItem(item);
+    setShowHistory(true);
+  };
+
+  const closeHistory = () => {
+    setShowHistory(false);
+    setHistoryItem(null);
+  };
+
   // Save full item edit
   const updateFullItem = (id, form) => {
     fetch("http://localhost/bill/backend/api/update_item.php", {
@@ -66,6 +80,7 @@ function App() {
         items={items}
         onHoldChange={updateHoldAmount}
         onEdit={openModal}
+        onHistory={openHistory}
       />
 
       <EditItemModal
@@ -73,6 +88,12 @@ function App() {
         item={editingItem}
         onClose={closeModal}
         onSave={updateFullItem}
+      />
+
+      <PaymentHistoryModal
+        show={showHistory}
+        item={historyItem}
+        onClose={closeHistory}
       />
     </div>
   );
