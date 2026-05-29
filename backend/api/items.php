@@ -6,7 +6,7 @@ require_once "../config/database.php";
 
 try {
     $db = new Database();
-    $pdo = $db->connect();
+    $pdo = $db->pdo;
 
     $stmt = $pdo->query("SELECT * FROM items ORDER BY due_date ASC");
     $items = $stmt->fetchAll(PDO::FETCH_ASSOC);

@@ -6,7 +6,7 @@ require_once "../config/database.php";
 
 try {
     $db = new Database();
-    $pdo = $db->connect();
+    $pdo = $db->pdo;
 
     $stmt = $pdo->query("SELECT * FROM accounts ORDER BY name ASC");
     $accounts = $stmt->fetchAll(PDO::FETCH_ASSOC);

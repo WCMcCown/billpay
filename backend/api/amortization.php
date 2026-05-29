@@ -6,7 +6,7 @@ require_once "../config/database.php";
 
 try {
     $db = new Database();
-    $pdo = $db->connect();
+    $pdo = $db->pdo;
 
     $stmt = $pdo->query("SELECT * FROM amortization ORDER BY id ASC");
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
