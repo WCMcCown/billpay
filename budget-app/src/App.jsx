@@ -2,53 +2,46 @@ import { useEffect, useState } from "react";
 import ItemsTable from "./components/ItemsTable";
 import EditItemModal from "./components/EditItemModal";
 import PaymentHistoryModal from "./components/PaymentHistoryModal";
-
+import MobileCards from "./components/MobileCards";
 
 function App() {
   const [items, setItems] = useState([]);
+  const [view, setView] = useState("auto"); // auto | table | mobile
+  const [isMobile, setIsMobile] = useState(false);
 
-  // Modal state
-  const [editingItem, setEditingItem] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [historyItem, setHistoryItem] = useState(null);
+  const [editItem, setEditItem] = useState(null);
+
   const [showHistory, setShowHistory] = useState(false);
+  const [historyItem, setHistoryItem] = useState(null);
 
-  // Load items from backend
-  const loadItems = () => {
-    fetch("http://localhost/bill/backend/api/items.php")
-      .then(res => res.json())
-      .then(data => setItems(data))
-      .catch(err => console.error("API error:", err));
-  };
-
+  // Detect mobile screen
   useEffect(() => {
-    loadItems();
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
   }, []);
 
-  // Inline hold amount update
-  const updateHoldAmount = (id, newHold) => {
-    fetch("http://localhost/bill/backend/api/update_hold.php", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, hold_amount: newHold })
-    })
+  // Fetch items
+  useEffect(() => {
+    fetch("http://localhost/bill/backend/api/get_items.php")
       .then(res => res.json())
-      .then(() => loadItems());
-  };
+      .then(data => setItems(data));
+  }, []);
 
-  // Open modal
-  const openModal = (item) => {
-    setEditingItem(item);
+  // Modal handlers
+  const openModal = item => {
+    setEditItem(item);
     setShowModal(true);
   };
 
-  // Close modal
   const closeModal = () => {
     setShowModal(false);
-    setEditingItem(null);
+    setEditItem(null);
   };
 
-  const openHistory = (item) => {
+  const openHistory = item => {
     setHistoryItem(item);
     setShowHistory(true);
   };
@@ -58,43 +51,50 @@ function App() {
     setHistoryItem(null);
   };
 
-  // Save full item edit
-  const updateFullItem = (id, form) => {
-    fetch("http://localhost/bill/backend/api/update_item.php", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, ...form })
-    })
-      .then(res => res.json())
-      .then(() => {
-        closeModal();
-        loadItems();
-      });
-  };
+  // Decide what to show
+  const showMobile = view === "mobile" || (view === "auto" && isMobile);
 
   return (
-    <div className="container py-4">
-      <h1 className="mb-4">Budget App</h1>
+    <div className="container py-3">
 
-      <ItemsTable
-        items={items}
-        onHoldChange={updateHoldAmount}
-        onEdit={openModal}
-        onHistory={openHistory}
-      />
+      {/* Toggle Buttons */}
+      <div className="mb-3">
+        <button
+          className={`btn btn-sm me-2 ${view === "table" ? "btn-primary" : "btn-outline-primary"}`}
+          onClick={() => setView("table")}
+        >
+          Table
+        </button>
 
-      <EditItemModal
-        show={showModal}
-        item={editingItem}
-        onClose={closeModal}
-        onSave={updateFullItem}
-      />
+        <button
+          className={`btn btn-sm me-2 ${view === "mobile" ? "btn-primary" : "btn-outline-primary"}`}
+          onClick={() => setView("mobile")}
+        >
+          Mobile Cards
+        </button>
 
-      <PaymentHistoryModal
-        show={showHistory}
-        item={historyItem}
-        onClose={closeHistory}
-      />
+        <button
+          className={`btn btn-sm ${view === "auto" ? "btn-primary" : "btn-outline-primary"}`}
+          onClick={() => setView("auto")}
+        >
+          Auto
+        </button>
+      </div>
+
+      {/* Layout Switch */}
+      {showMobile ? (
+        <MobileCards items={items} />
+      ) : (
+        <ItemsTable
+          items={items}
+          onEdit={openModal}
+          onHistory={openHistory}
+        />
+      )}
+
+      {/* Modals */}
+      <EditItemModal show={showModal} item={editItem} onClose={closeModal} />
+      <PaymentHistoryModal show={showHistory} item={historyItem} onClose={closeHistory} />
     </div>
   );
 }
