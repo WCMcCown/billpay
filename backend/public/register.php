@@ -1,152 +1,46 @@
 <?php
-require_once __DIR__ . '/../config/database.php';
+header("Content-Type: application/json");
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Headers: Content-Type");
 
-$errors = [];
-$success = false;
+include "../config/database.php";
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+$data = json_decode(file_get_contents("php://input"), true);
 
-    $name  = trim($_POST['name']);
-    $email = trim($_POST['email']);
-    $pass1 = $_POST['password'];
-    $pass2 = $_POST['confirm_password'];
+$email = $data["email"] ?? "";
+$password = $data["password"] ?? "";
+$name = $data["name"] ?? null;
 
-    // Basic validation
-    if ($name === '') {
-        $errors[] = "Name is required.";
-    }
-
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $errors[] = "A valid email is required.";
-    }
-
-    if ($pass1 !== $pass2) {
-        $errors[] = "Passwords do not match.";
-    }
-
-    if (strlen($pass1) < 6) {
-        $errors[] = "Password must be at least 6 characters.";
-    }
-
-    if (empty($errors)) {
-        $db = new Database();
-
-        // Check if email already exists
-        $stmt = $db->pdo->prepare("SELECT id FROM users WHERE email = ?");
-        $stmt->execute([$email]);
-
-        if ($stmt->fetch()) {
-            $errors[] = "An account with that email already exists.";
-        } else {
-            // Hash password (best practice)
-            $hash = password_hash($pass1, PASSWORD_DEFAULT);
-
-            $stmt = $db->pdo->prepare(
-                "INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)"
-            );
-            $stmt->execute([$name, $email, $hash]);
-
-            $success = true;
-        }
-    }
+if (!$email || !$password) {
+    echo json_encode(["success" => false, "message" => "Missing fields"]);
+    exit;
 }
-?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Create Account</title>
+// Check if email exists
+$stmt = $conn->prepare("SELECT id FROM users WHERE email = ?");
+$stmt->bind_param("s", $email);
+$stmt->execute();
+$stmt->store_result();
 
-    <link 
-        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" 
-        rel="stylesheet"
-    >
-</head>
+if ($stmt->num_rows > 0) {
+    echo json_encode(["success" => false, "message" => "Email already registered"]);
+    exit;
+}
 
-<body class="bg-light">
+$stmt->close();
 
-<div class="container py-5">
-    <div class="row justify-content-center">
-        <div class="col-md-6">
+// Hash password
+$hashed = password_hash($password, PASSWORD_DEFAULT);
 
-            <div class="card shadow-sm">
-                <div class="card-body">
+// Insert user
+$stmt = $conn->prepare("INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)");
+$stmt->bind_param("sss", $email, $hashed, $name);
 
-                    <h3 class="text-center mb-4">Create Your Account</h3>
+if ($stmt->execute()) {
+    echo json_encode(["success" => true]);
+} else {
+    echo json_encode(["success" => false, "message" => "Database error"]);
+}
 
-                    <?php if ($success): ?>
-                        <div class="alert alert-success">
-                            Account created successfully!  
-                            <a href="login.php">Click here to log in.</a>
-                        </div>
-                    <?php endif; ?>
-
-                    <?php if (!empty($errors)): ?>
-                        <div class="alert alert-danger">
-                            <ul class="mb-0">
-                                <?php foreach ($errors as $e): ?>
-                                    <li><?= htmlspecialchars($e) ?></li>
-                                <?php endforeach; ?>
-                            </ul>
-                        </div>
-                    <?php endif; ?>
-
-                    <form method="POST">
-
-                        <div class="mb-3">
-                            <label class="form-label">Name</label>
-                            <input 
-                                type="text" 
-                                name="name" 
-                                class="form-control"
-                                required
-                            >
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">Email</label>
-                            <input 
-                                type="email" 
-                                name="email" 
-                                class="form-control"
-                                required
-                            >
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">Password</label>
-                            <input 
-                                type="password" 
-                                name="password" 
-                                class="form-control"
-                                required
-                            >
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">Confirm Password</label>
-                            <input 
-                                type="password" 
-                                name="confirm_password" 
-                                class="form-control"
-                                required
-                            >
-                        </div>
-
-                        <button class="btn btn-primary w-100">
-                            Create Account
-                        </button>
-
-                    </form>
-
-                </div>
-            </div>
-
-        </div>
-    </div>
-</div>
-
-</body>
-</html>
+$stmt->close();
+$conn->close();
