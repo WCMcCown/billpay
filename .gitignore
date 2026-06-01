@@ -10,4 +10,4 @@ Thumbs.db
 vendor/
 
 # Sensitive config
-config/database.php
+config/private.php
