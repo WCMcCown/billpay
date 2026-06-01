@@ -1,0 +1,1 @@
+Copy config/private.example.php to config/private.php and fill in your own credentials.
