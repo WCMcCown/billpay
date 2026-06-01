@@ -33,13 +33,25 @@ const AddUpcomingExpense = ({ user }) => {
             notes: notes || null
         };
 
-        fetch("http://127.0.0.1/api/upcoming_expenses.php", {
+        fetch("http://127.0.0.1/bill/backend/api/upcoming_expenses.php", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
         })
-            .then(res => res.json())
+            .then(async res => {
+                const text = await res.text();
+                console.log("RAW RESPONSE:", text);
+
+                try {
+                    return JSON.parse(text);
+                } catch (err) {
+                    console.error("JSON PARSE ERROR:", err);
+                    throw new Error("Invalid JSON from server");
+                }
+            })
             .then(data => {
+                console.log("PARSED RESPONSE:", data);
+
                 if (data.success) {
                     navigate("/dashboard");
                 } else {
@@ -47,7 +59,8 @@ const AddUpcomingExpense = ({ user }) => {
                 }
                 setSaving(false);
             })
-            .catch(() => {
+            .catch(err => {
+                console.error("REQUEST FAILED:", err);
                 setMessage("Error saving upcoming expense.");
                 setSaving(false);
             });

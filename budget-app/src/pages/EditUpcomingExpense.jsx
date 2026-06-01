@@ -19,15 +19,15 @@ const EditUpcomingExpense = ({ user }) => {
     useEffect(() => {
         if (!user?.id || !id) return;
 
-        fetch(`http://127.0.0.1/api/upcoming_expenses.php?user_id=${user.id}`)
+        fetch(`http://127.0.0.1/bill/backend/api/upcoming_expenses.php?user_id=${user.id}`)
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
-                    const expense = data.expenses.find(e => e.id === id || e.id === parseInt(id));
+                    const expense = data.expenses.find(e => e.id === parseInt(id));
                     if (expense) {
                         setName(expense.name);
                         setAmount(expense.amount);
-                        setHoldAmount(expense.hold_amount);
+                        setHoldAmount(expense.hold_amount ?? expense.amount ?? "0");
                         setDueDate(expense.due_date || "");
                         setNotes(expense.notes || "");
                     }
@@ -36,6 +36,7 @@ const EditUpcomingExpense = ({ user }) => {
             })
             .catch(() => setLoading(false));
     }, [user, id]);
+
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -59,7 +60,7 @@ const EditUpcomingExpense = ({ user }) => {
             notes: notes || null
         };
 
-        fetch("http://127.0.0.1/api/upcoming_expenses.php", {
+        fetch("http://127.0.0.1/bill/backend/api/upcoming_expenses.php", {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)

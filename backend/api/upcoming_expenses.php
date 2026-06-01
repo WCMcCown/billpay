@@ -1,8 +1,9 @@
 <?php
 header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Headers: Content-Type");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept");
 header("Content-Type: application/json");
+
 
 require_once "../config/database.php";
 
@@ -115,8 +116,7 @@ switch ($method) {
                     amount = :amount,
                     hold_amount = :hold_amount,
                     due_date = :due_date,
-                    notes = :notes,
-                    updated_at = NOW()
+                    notes = :notes
                   WHERE id = :id AND user_id = :user_id";
 
         $stmt = $pdo->prepare($query);

@@ -107,6 +107,101 @@ const Dashboard = ({ user, ready }) => {
         }
         }
 
+    // Format currency
+    const money = (n) => `$${parseFloat(n).toFixed(2)}`;
+
+    // Format date from YYYY-MM-DD → MM/DD/YYYY
+    const formatDate = (dateStr) => {
+        if (!dateStr) return "";
+        return new Date(dateStr).toLocaleDateString("en-US");
+    };
+
+    // Days until due (simple version)
+    const daysUntilDue = (dueDay) => {
+        const today = new Date();
+        const currentDay = today.getDate();
+        let diff = dueDay - currentDay;
+        if (diff < 0) diff += 30;
+        return diff;
+    };
+
+    // Next due date
+    const nextDueDate = (dueDay) => {
+        const today = new Date();
+        let date = new Date(today.getFullYear(), today.getMonth(), dueDay);
+        if (date < today) date = new Date(today.getFullYear(), today.getMonth() + 1, dueDay);
+        return date.toLocaleDateString("en-US");
+    };
+
+    // Monthly equivalent (frequency = times per month)
+    const monthlyEquivalent = (amount, frequency) => {
+        return (parseFloat(amount) * parseFloat(frequency)).toFixed(2);
+    };
+
+    // Interest per period (for debts)
+    const interestPerPeriod = (apr, remaining) => {
+        const rate = parseFloat(apr) / 100 / 12;
+        return (remaining * rate).toFixed(2);
+    };
+
+    // Interest per year (for debts)
+    const interestPerYear = (apr, remaining) => {
+        const rate = parseFloat(apr) / 100;
+        return (remaining * rate).toFixed(2);
+    };
+
+    // Roughly estimated pay off month
+    const payoffEstimate = (remaining, apr, monthlyPayment) => {
+        remaining = parseFloat(remaining);
+        apr = parseFloat(apr);
+        monthlyPayment = parseFloat(monthlyPayment);
+
+        if (monthlyPayment <= 0 || remaining <= 0) {
+            return { months: 0, date: "", totalInterest: 0 };
+        }
+
+        const monthlyRate = apr / 100 / 12;
+
+        // If APR is 0, payoff is simple
+        if (monthlyRate === 0) {
+            const months = Math.ceil(remaining / monthlyPayment);
+            const payoffDate = new Date();
+            payoffDate.setMonth(payoffDate.getMonth() + months);
+            return {
+                months,
+                date: payoffDate.toLocaleDateString("en-US"),
+                totalInterest: 0
+            };
+        }
+
+        // Standard amortization formula:
+        // n = -log(1 - r*P/B) / log(1+r)
+        const numerator = -Math.log(1 - (monthlyRate * remaining) / monthlyPayment);
+        const denominator = Math.log(1 + monthlyRate);
+
+        let months = Math.ceil(numerator / denominator);
+
+        // Prevent infinite loops if payment is too small
+        if (!isFinite(months) || months < 0) {
+            return { months: Infinity, date: "Never", totalInterest: Infinity };
+        }
+
+        // Calculate total interest
+        const totalPaid = months * monthlyPayment;
+        const totalInterest = (totalPaid - remaining).toFixed(2);
+
+        // Calculate payoff date
+        const payoffDate = new Date();
+        payoffDate.setMonth(payoffDate.getMonth() + months);
+
+        return {
+            months,
+            date: payoffDate.toLocaleDateString("en-US"),
+            totalInterest
+        };
+    };
+
+
 
     useEffect(() => {
         const billsHold = bills.reduce((sum, b) => sum + parseFloat(b.hold_amount || 0), 0);
@@ -175,7 +270,7 @@ const Dashboard = ({ user, ready }) => {
                                         />
                                     </td>
 
-                                    <td>{item.due_date || ""}</td>
+                                    <td>{formatDate(item.due_date || "")}</td>
                                     <td>{item.notes || ""}</td>
 
                                     <td>
@@ -258,52 +353,122 @@ const Dashboard = ({ user, ready }) => {
                             <th>Amount</th>
                             <th>Hold</th>
                             <th>Due Day</th>
-                            <th>Frequency</th>
+                            <th>Next Due</th>
+                            <th>Days Left</th>
+                            <th>Monthly</th>
+                            <th>Autopay</th>
+                            <th>Category</th>
+                            <th>APR</th>
+                            <th>Remaining</th>
+                            <th>Months Left</th>
+                            <th>Payoff Date</th>
+                            <th>Total Interest Left</th>
+                            <th>Interest / Mo</th>
+                            <th>Interest / Yr</th>
+                            <th>Link</th>
+                            <th>Notes</th>
                             <th></th>
                         </tr>
                     </thead>
+
                     <tbody>
-                        {bills.map(b => (
-                            <tr key={b.id}>
-                                <td>{b.name}</td>
-                                <td>${parseFloat(b.amount).toFixed(2)}</td>
+                        {bills.map(b => {
+                            const isDebt = b.type === "debt";
 
-                                <td>
-                                    <input
-                                        type="number"
-                                        step="0.01"
-                                        value={b.hold_amount}
-                                        onChange={(e) => updateBillHold(b.id, e.target.value)}
-                                        style={{ width: "90px" }}
-                                    />
-                                </td>
+                            return (
+                                <tr key={b.id}>
+                                    <td>{b.name}</td>
 
-                                <td>{b.due_day}</td>
-                                <td>{b.frequency}</td>
+                                    <td>{money(b.amount)}</td>
 
-                                <td>
-                                    <Link
-                                        to={`/edit-bill/${b.id}`}
-                                        className="btn btn-sm btn-primary"
-                                    >
-                                        Edit
-                                    </Link>
-                                </td>
+                                    <td>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            value={b.hold_amount}
+                                            onChange={(e) => updateBillHold(b.id, e.target.value)}
+                                            style={{ width: "90px" }}
+                                        />
+                                    </td>
 
-                                <td>
-                                    <button
-                                        style={{ background: "red", color: "white" }}
-                                        onClick={() => handleDelete(b.id)}
-                                    >
-                                        Delete
-                                    </button>
-                                </td>
+                                    <td>{b.due_day}</td>
 
-                            </tr>
-                        ))}
+                                    <td>{nextDueDate(b.due_day)}</td>
+
+                                    <td>{daysUntilDue(b.due_day)}</td>
+
+                                    <td>{money(monthlyEquivalent(b.amount, b.frequency))}</td>
+
+                                    <td>{b.autopay ? "Yes" : "No"}</td>
+
+                                    <td>{b.category || ""}</td>
+
+                                    {/* Debt-only fields */}
+                                    <td>{isDebt ? `${b.apr}%` : ""}</td>
+
+                                    <td>{isDebt ? money(b.remaining) : ""}</td>
+
+                                    {(() => {
+                                        if (!isDebt) return (
+                                            <>
+                                                <td></td>
+                                                <td></td>
+                                                <td></td>
+                                            </>
+                                        );
+
+                                        const payoff = payoffEstimate(b.remaining, b.apr, b.amount);
+
+                                        return (
+                                            <>
+                                                <td>{payoff.months === Infinity ? "∞" : payoff.months}</td>
+                                                <td>{payoff.date}</td>
+                                                <td>{money(payoff.totalInterest)}</td>
+                                            </>
+                                        );
+                                    })()}
+
+                                    <td>{isDebt ? money(interestPerPeriod(b.apr, b.remaining)) : ""}</td>
+
+                                    <td>{isDebt ? money(interestPerYear(b.apr, b.remaining)) : ""}</td>
+
+                                    <td>
+                                        {b.link ? (
+                                            <a href={b.link} target="_blank" rel="noreferrer" className="btn btn-sm btn-info">
+                                                Pay
+                                            </a>
+                                        ) : ""}
+                                    </td>
+
+                                    <td>
+                                        {b.notes ? (
+                                            <span title={b.notes} style={{ cursor: "help" }}>📝</span>
+                                        ) : ""}
+                                    </td>
+
+                                    <td>
+                                        <Link
+                                            to={`/edit-bill/${b.id}`}
+                                            className="btn btn-sm btn-primary"
+                                            style={{ marginRight: "10px" }}
+                                        >
+                                            Edit
+                                        </Link>
+
+                                        <button
+                                            className="btn btn-sm btn-danger"
+                                            onClick={() => handleDelete(b.id)}
+                                        >
+                                            Delete
+                                        </button>
+                                    </td>
+                                </tr>
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>
+
 
             {/* TOTALS */}
             <div style={{ marginBottom: "40px" }}>
