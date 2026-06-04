@@ -71,8 +71,23 @@ try {
             $data['notes'] ?? null
         ]);
 
-        echo json_encode(["success" => $success]);
+        $stmt->execute();
+
+        $newId = $pdo->lastInsertId();
+
+        // Fetch the newly created bill
+        $query = "SELECT * FROM bills WHERE id = :id LIMIT 1";
+        $stmt = $pdo->prepare($query);
+        $stmt->bindParam(":id", $newId);
+        $stmt->execute();
+        $newBill = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        echo json_encode([
+            "success" => true,
+            "bill" => $newBill
+        ]);
         exit;
+
     }
 
     // -------------------------
@@ -110,7 +125,19 @@ try {
             $data['user_id']
         ]);
 
-        echo json_encode(["success" => $success]);
+        $stmt->execute();
+
+        // Fetch updated bill
+        $query = "SELECT * FROM bills WHERE id = :id LIMIT 1";
+        $stmt = $pdo->prepare($query);
+        $stmt->bindParam(":id", $data['id']);
+        $stmt->execute();
+        $updatedBill = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        echo json_encode([
+            "success" => true,
+            "bill" => $updatedBill
+        ]);
         exit;
     }
 

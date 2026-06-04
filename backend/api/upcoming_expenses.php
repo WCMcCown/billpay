@@ -87,8 +87,23 @@ switch ($method) {
 
         $stmt->execute();
 
-        echo json_encode(["success" => true, "message" => "Upcoming expense added"]);
+        // Get the ID of the newly inserted row
+        $newId = $pdo->lastInsertId();
+
+        // Fetch the newly created expense
+        $query = "SELECT * FROM upcoming_expenses WHERE id = :id LIMIT 1";
+        $stmt = $pdo->prepare($query);
+        $stmt->bindParam(":id", $newId);
+        $stmt->execute();
+        $newExpense = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        // Return it to the frontend
+        echo json_encode([
+            "success" => true,
+            "expense" => $newExpense
+        ]);
         break;
+
 
 
     /* ---------------------------------------------------------
@@ -131,7 +146,16 @@ switch ($method) {
 
         $stmt->execute();
 
-        echo json_encode(["success" => true, "message" => "Upcoming expense updated"]);
+        $query = "SELECT * FROM upcoming_expenses WHERE id = :id LIMIT 1";
+        $stmt = $pdo->prepare($query);
+        $stmt->bindParam(":id", $id);
+        $stmt->execute();
+        $updatedExpense = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        echo json_encode([
+            "success" => true,
+            "expense" => $updatedExpense
+        ]);
         break;
 
 

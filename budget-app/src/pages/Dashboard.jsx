@@ -1,6 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
+// Import Add/Edit Modals
+import EditBill from "./EditBill";
+import AddBill from "./AddBill";
+import AddUpcomingExpense from "./AddUpcomingExpense";
+import EditUpcomingExpense from "./EditUpcomingExpense";
+import Modal from "../components/Modal";
+
 const Dashboard = ({ user, ready }) => {
     const [loading, setLoading] = useState(true);
 
@@ -12,6 +19,11 @@ const Dashboard = ({ user, ready }) => {
 
     const [totalBillsHold, setTotalBillsHold] = useState(0);
     const [totalUpcomingHold, setTotalUpcomingHold] = useState(0);
+    const [editingBillId, setEditingBillId] = useState(null);
+    const [addingBill, setAddingBill] = useState(false);
+    const [addingUpcoming, setAddingUpcoming] = useState(false);
+    const [editingUpcomingId, setEditingUpcomingId] = useState(null);  
+
 
     const API = "http://127.0.0.1/bill/backend/api";
 
@@ -238,9 +250,13 @@ const Dashboard = ({ user, ready }) => {
             <div style={{ marginBottom: "40px" }}>
                 <h3>Upcoming Expenses</h3>
 
-                <Link to="/add-upcoming" className="btn btn-success" style={{ marginBottom: "15px" }}>
+                <button
+                    className="btn btn-success"
+                    style={{ marginBottom: "15px" }}
+                    onClick={() => setAddingUpcoming(true)}
+                >
                     + Add Upcoming Expense
-                </Link>
+                </button>
 
                 {viewMode === "table" ? (
                     <table className="table table-striped">
@@ -274,13 +290,14 @@ const Dashboard = ({ user, ready }) => {
                                     <td>{item.notes || ""}</td>
 
                                     <td>
-                                        <Link
-                                            to={`/edit-upcoming/${item.id}`}
+                                        <button
                                             className="btn btn-sm btn-primary"
                                             style={{ marginRight: "5px" }}
+                                            onClick={() => setEditingUpcomingId(item.id)}
                                         >
                                             Edit
-                                        </Link>
+                                        </button>
+
 
                                         <button
                                             className="btn btn-sm btn-danger"
@@ -342,9 +359,12 @@ const Dashboard = ({ user, ready }) => {
             <div style={{ marginBottom: "40px" }}>
                 <h3>Bills</h3>
 
-                <Link to="/add-bill" className="btn btn-success" style={{ marginBottom: "15px" }}>
+                <button
+                    className="btn btn-success"
+                    onClick={() => setAddingBill(true)}
+                >
                     + Add Bill
-                </Link>
+                </button>
 
                 <table className="table table-striped">
                     <thead>
@@ -447,13 +467,13 @@ const Dashboard = ({ user, ready }) => {
                                     </td>
 
                                     <td>
-                                        <Link
-                                            to={`/edit-bill/${b.id}`}
+                                        <button
                                             className="btn btn-sm btn-primary"
                                             style={{ marginRight: "10px" }}
+                                            onClick={() => setEditingBillId(b.id)}
                                         >
                                             Edit
-                                        </Link>
+                                        </button>
 
                                         <button
                                             className="btn btn-sm btn-danger"
@@ -482,6 +502,83 @@ const Dashboard = ({ user, ready }) => {
                     {(totalBillsHold + totalUpcomingHold).toFixed(2)}
                 </h4>
             </div>
+
+
+
+            {/* EDIT BILL MODAL */}
+            {editingBillId && (
+                <Modal onClose={() => setEditingBillId(null)}>
+                    <EditBill
+                        billId={editingBillId}
+                        onClose={(updatedBill) => {
+                            setEditingBillId(null);
+
+                            if (updatedBill) {
+                                setBills(prev =>
+                                    prev.map(b =>
+                                        b.id === updatedBill.id ? updatedBill : b
+                                    )
+                                );
+                            }
+                        }}
+                    />
+                </Modal>
+            )}
+
+            {/* ADD BILL MODAL */}
+            {addingBill && (
+                <Modal onClose={() => setAddingBill(false)}>
+                    <AddBill
+                        user={user}
+                        onClose={(newBill) => {
+                            setAddingBill(false);
+
+                            if (newBill) {
+                                setBills(prev => [...prev, newBill]);
+                            }
+                        }}
+                    />
+                </Modal>
+            )}
+
+            {/* ADD UPCOMING EXPENSE MODAL */}
+            {addingUpcoming && (
+                <Modal onClose={() => setAddingUpcoming(false)}>
+                    <AddUpcomingExpense
+                        user={user}
+                        onClose={(newExpense) => {
+                            setAddingUpcoming(false);
+
+                            if (newExpense) {
+                                setUpcoming(prev => [...prev, newExpense]);
+                            }
+                        }}
+                    />
+                </Modal>
+            )}
+
+            {/* EDIT UPCOMING EXPENSE MODAL */}
+            {editingUpcomingId && (
+                <Modal onClose={() => setEditingUpcomingId(null)}>
+                    <EditUpcomingExpense
+                        expenseId={editingUpcomingId}
+                        user={user}
+                        onClose={(updatedExpense) => {
+                            setEditingUpcomingId(null);
+
+                            if (updatedExpense) {
+                                setUpcoming(prev =>
+                                    prev.map(e =>
+                                        e.id === updatedExpense.id ? updatedExpense : e
+                                    )
+                                );
+                            }
+                        }}
+                    />
+                </Modal>
+            )}
+
+
         </div>
     );
 };
