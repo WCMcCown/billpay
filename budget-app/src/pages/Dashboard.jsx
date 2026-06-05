@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 
 import EditBill from "./EditBill";
@@ -51,7 +51,13 @@ const Dashboard = ({ user, ready }) => {
                     setSettings(settingsRes.settings);
                     setStartingAmount(parseFloat(settingsRes.settings.starting_amount || 0));
                 }
-                if (billsRes.success) setBills(billsRes.bills || []);
+                if (billsRes.success) {
+                    const initialized = (billsRes.bills || []).map(bill => ({
+                        ...bill,
+                        hold_amount: bill.hold_amount ?? calculateHoldForBill(bill, settingsRes.settings)
+                    }));
+                    setBills(initialized);
+                }
                 if (upcomingRes.success) {
                     const initialized = (upcomingRes.expenses || []).map(item => ({
                         ...item,
@@ -88,23 +94,6 @@ const Dashboard = ({ user, ready }) => {
 
         setViewMode(settings.view_mode);
     }, [settings]);
-
-    useEffect(() => {
-        if (!settings || bills.length === 0) return;
-
-        setBills(prev =>
-            prev.map(bill => {
-                const recommended = calculateHoldForBill(bill, settings);
-
-                return {
-                    ...bill,
-                    hold_amount:
-                        bill.hold_amount ?? recommended
-                };
-            })
-        );
-    }, [settings, bills.length]);
-
 
 
     // Update hold amounts
@@ -303,6 +292,104 @@ const Dashboard = ({ user, ready }) => {
         return parseFloat(holdAmount.toFixed(2));
     }
 
+    const weightedDebtFreeMonths = () => {
+    const debts = bills.filter(b => b.type === "debt");
+    if (debts.length === 0) return 0;
+
+    let totalRemaining = 0;
+    let weightedMonths = 0;
+
+    debts.forEach(b => {
+        const payoff = payoffEstimate(b.remaining, b.apr, b.amount);
+        totalRemaining += parseFloat(b.remaining);
+        weightedMonths += payoff.months * parseFloat(b.remaining);
+    });
+
+    return Math.round(weightedMonths / totalRemaining);
+};
+
+    const avalanchePayoffMonths = () => {
+        const debts = bills
+            .filter(b => b.type === "debt")
+            .map(b => ({
+                ...b,
+                remaining: parseFloat(b.remaining),
+                apr: parseFloat(b.apr),
+                payment: parseFloat(b.amount)
+            }))
+            .sort((a, b) => b.apr - a.apr);
+
+        let months = 0;
+        let safety = 2000; // max 2000 months (~166 years)
+
+        while (debts.some(d => d.remaining > 0) && months < safety) {
+            months++;
+
+            debts.forEach(d => {
+                if (d.remaining <= 0) return;
+                const interest = d.remaining * (d.apr / 100 / 12);
+                d.remaining = d.remaining + interest - d.payment;
+                if (d.remaining < 0) d.remaining = 0;
+            });
+        }
+
+        return months;
+    };
+
+    const snowballPayoffMonths = () => {
+        const debts = bills
+            .filter(b => b.type === "debt")
+            .map(b => ({
+                ...b,
+                remaining: parseFloat(b.remaining),
+                apr: parseFloat(b.apr),
+                payment: parseFloat(b.amount)
+            }))
+            .sort((a, b) => a.remaining - b.remaining);
+
+        let months = 0;
+        let safety = 2000; // max 2000 months (~166 years)
+
+        while (debts.some(d => d.remaining > 0) && months < safety) {
+            months++;
+
+            debts.forEach(d => {
+                if (d.remaining <= 0) return;
+                const interest = d.remaining * (d.apr / 100 / 12);
+                d.remaining = d.remaining + interest - d.payment;
+                if (d.remaining < 0) d.remaining = 0;
+            });
+        }
+
+        return months;
+    };
+
+    const monthsToDate = (months) => {
+        const d = new Date();
+        d.setMonth(d.getMonth() + months);
+        return d.toLocaleDateString("en-US");
+    };
+
+    const hasDebts = bills.some(b => b.type === "debt");
+
+    const weightedMonths = useMemo(() => {
+        if (!hasDebts) return 0;
+        return weightedDebtFreeMonths();
+    }, [bills]);
+
+    const avalancheMonths = useMemo(() => {
+        if (!hasDebts) return 0;
+        return avalanchePayoffMonths();
+    }, [bills]);
+
+    const snowballMonths = useMemo(() => {
+        if (!hasDebts) return 0;
+        return snowballPayoffMonths();
+    }, [bills]);
+
+    const weightedDate = weightedMonths ? monthsToDate(weightedMonths) : "";
+    const avalancheDate = avalancheMonths ? monthsToDate(avalancheMonths) : "";
+    const snowballDate = snowballMonths ? monthsToDate(snowballMonths) : "";
 
 
     // Totals
@@ -752,7 +839,9 @@ const Dashboard = ({ user, ready }) => {
                 <h3>Totals</h3>
 
                 <p><strong>Total Bills Hold:</strong> ${totalBillsHold.toFixed(2)}</p>
+
                 <p><strong>Total Upcoming Hold:</strong> ${totalUpcomingHold.toFixed(2)}</p>
+
                 <p><strong>Total Hold Per Check:</strong> ${totalHoldPerCheck.toFixed(2)}</p>
 
                 <h4>
@@ -772,6 +861,23 @@ const Dashboard = ({ user, ready }) => {
 
                 <p><strong>Total Annual Interest:</strong> ${totalAnnualInterest.toFixed(2)}</p>
             </div>
+
+            <div style={{
+                marginTop: "20px",
+                padding: "15px",
+                border: "1px solid #ccc",
+                borderRadius: "8px",
+                background: "#f9f9f9"
+            }}>
+                <h3>Debt Payoff Projections</h3>
+
+                <p><strong>Weighted Average Payoff:</strong> {weightedMonths} months ({weightedDate})</p>
+
+                <p><strong>Avalanche Method:</strong> {avalancheMonths} months ({avalancheDate})</p>
+
+                <p><strong>Snowball Method:</strong> {snowballMonths} months ({snowballDate})</p>
+            </div>
+
 
 
 
