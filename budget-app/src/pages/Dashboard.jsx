@@ -308,61 +308,92 @@ const Dashboard = ({ user, ready }) => {
     return Math.round(weightedMonths / totalRemaining);
 };
 
-    const avalanchePayoffMonths = () => {
-        const debts = bills
-            .filter(b => b.type === "debt")
-            .map(b => ({
-                ...b,
-                remaining: parseFloat(b.remaining),
-                apr: parseFloat(b.apr),
-                payment: parseFloat(b.amount)
+    const simulateAvalanche = (debts) => {
+        // Clone debts so we don't mutate state
+        debts = debts
+            .filter(d => d.type === "debt" && d.remaining > 0)
+            .map(d => ({
+                name: d.name,
+                balance: parseFloat(d.remaining),
+                apr: parseFloat(d.apr),
+                payment: parseFloat(d.amount)
             }))
-            .sort((a, b) => b.apr - a.apr);
+            .sort((a, b) => b.apr - a.apr); // highest APR first
 
         let months = 0;
-        let safety = 2000; // max 2000 months (~166 years)
 
-        while (debts.some(d => d.remaining > 0) && months < safety) {
+        while (debts.some(d => d.balance > 0)) {
             months++;
 
-            debts.forEach(d => {
-                if (d.remaining <= 0) return;
-                const interest = d.remaining * (d.apr / 100 / 12);
-                d.remaining = d.remaining + interest - d.payment;
-                if (d.remaining < 0) d.remaining = 0;
-            });
+            for (let i = 0; i < debts.length; i++) {
+                let d = debts[i];
+                if (d.balance <= 0) continue;
+
+                // Monthly interest
+                const interest = d.balance * (d.apr / 100 / 12);
+
+                // Apply payment
+                d.balance = d.balance + interest - d.payment;
+
+                // If paid off this month
+                if (d.balance <= 0) {
+                    d.balance = 0;
+
+                    // Roll payment into next debt
+                    if (i + 1 < debts.length) {
+                        debts[i + 1].payment += d.payment;
+                    }
+                }
+            }
+
+            // Safety limit
+            if (months > 2000) break;
         }
 
         return months;
     };
 
-    const snowballPayoffMonths = () => {
-        const debts = bills
-            .filter(b => b.type === "debt")
-            .map(b => ({
-                ...b,
-                remaining: parseFloat(b.remaining),
-                apr: parseFloat(b.apr),
-                payment: parseFloat(b.amount)
+
+
+    const simulateSnowball = (debts) => {
+        debts = debts
+            .filter(d => d.type === "debt" && d.remaining > 0)
+            .map(d => ({
+                name: d.name,
+                balance: parseFloat(d.remaining),
+                apr: parseFloat(d.apr),
+                payment: parseFloat(d.amount)
             }))
-            .sort((a, b) => a.remaining - b.remaining);
+            .sort((a, b) => a.balance - b.balance); // smallest balance first
 
         let months = 0;
-        let safety = 2000; // max 2000 months (~166 years)
 
-        while (debts.some(d => d.remaining > 0) && months < safety) {
+        while (debts.some(d => d.balance > 0)) {
             months++;
 
-            debts.forEach(d => {
-                if (d.remaining <= 0) return;
-                const interest = d.remaining * (d.apr / 100 / 12);
-                d.remaining = d.remaining + interest - d.payment;
-                if (d.remaining < 0) d.remaining = 0;
-            });
+            for (let i = 0; i < debts.length; i++) {
+                let d = debts[i];
+                if (d.balance <= 0) continue;
+
+                const interest = d.balance * (d.apr / 100 / 12);
+                d.balance = d.balance + interest - d.payment;
+
+                if (d.balance <= 0) {
+                    d.balance = 0;
+
+                    if (i + 1 < debts.length) {
+                        debts[i + 1].payment += d.payment;
+                    }
+                }
+            }
+
+            if (months > 2000) break;
         }
 
         return months;
     };
+
+
 
     const monthsToDate = (months) => {
         const d = new Date();
@@ -377,19 +408,13 @@ const Dashboard = ({ user, ready }) => {
         return weightedDebtFreeMonths();
     }, [bills]);
 
-    const avalancheMonths = useMemo(() => {
-        if (!hasDebts) return 0;
-        return avalanchePayoffMonths();
-    }, [bills]);
+    const avalancheMonths = useMemo(() => simulateAvalanche(bills), [bills]);
+    const snowballMonths = useMemo(() => simulateSnowball(bills), [bills]);
 
-    const snowballMonths = useMemo(() => {
-        if (!hasDebts) return 0;
-        return snowballPayoffMonths();
-    }, [bills]);
+    const avalancheDate = monthsToDate(avalancheMonths);
+    const snowballDate = monthsToDate(snowballMonths);
 
     const weightedDate = weightedMonths ? monthsToDate(weightedMonths) : "";
-    const avalancheDate = avalancheMonths ? monthsToDate(avalancheMonths) : "";
-    const snowballDate = snowballMonths ? monthsToDate(snowballMonths) : "";
 
 
     // Totals
