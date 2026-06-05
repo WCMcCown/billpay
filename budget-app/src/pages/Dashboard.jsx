@@ -314,16 +314,25 @@ const Dashboard = ({ user, ready }) => {
         setTotalUpcomingHold(upcomingHold);
     }, [bills, upcoming]);
 
+    // Total amount to hold per check
     const totalHoldPerCheck = totalBillsHold + totalUpcomingHold;
 
+    // Total debt remaining
     const totalDebtRemaining = bills
         .filter(b => b.type === "debt")
         .reduce((sum, b) => sum + parseFloat(b.remaining || 0), 0);
 
+    // Total monthly payments (sum of monthly equivalents for debts)
+    const totalMonthlyPayments = bills
+        .filter(b => b.type === "debt")
+        .reduce((sum, b) => sum + parseFloat(monthlyEquivalent(b.amount, b.frequency)), 0);
+
+    // Total monthly interest
     const totalMonthlyInterest = bills
         .filter(b => b.type === "debt")
         .reduce((sum, b) => sum + parseFloat(interestPerPeriod(b.apr, b.remaining)), 0);
 
+    // Total annual interest
     const totalAnnualInterest = bills
         .filter(b => b.type === "debt")
         .reduce((sum, b) => sum + parseFloat(interestPerYear(b.apr, b.remaining)), 0);
@@ -745,15 +754,25 @@ const Dashboard = ({ user, ready }) => {
                 <p><strong>Total Bills Hold:</strong> ${totalBillsHold.toFixed(2)}</p>
                 <p><strong>Total Upcoming Hold:</strong> ${totalUpcomingHold.toFixed(2)}</p>
                 <p><strong>Total Hold Per Check:</strong> ${totalHoldPerCheck.toFixed(2)}</p>
-                <p><strong>Total Debt Remaining:</strong> ${totalDebtRemaining.toFixed(2)}</p>
-                <p><strong>Total Monthly Interest:</strong> ${totalMonthlyInterest.toFixed(2)}</p>
-                <p><strong>Total Annual Interest:</strong> ${totalAnnualInterest.toFixed(2)}</p>
 
                 <h4>
                     Free to Spend: $
                     {(startingAmount - (totalBillsHold + totalUpcomingHold)).toFixed(2)}
                 </h4>
             </div>
+
+            <div style={{ marginBottom: "40px", marginTop: "20px" }}>
+                <h3>Debt Summary</h3>
+
+                <p><strong>Total Debt Remaining:</strong> ${totalDebtRemaining.toFixed(2)}</p>
+
+                <p><strong>Total Monthly Payments:</strong> ${totalMonthlyPayments.toFixed(2)}</p>
+
+                <p><strong>Total Monthly Interest:</strong> ${totalMonthlyInterest.toFixed(2)}</p>
+
+                <p><strong>Total Annual Interest:</strong> ${totalAnnualInterest.toFixed(2)}</p>
+            </div>
+
 
 
 
