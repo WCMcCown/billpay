@@ -52,7 +52,13 @@ const Dashboard = ({ user, ready }) => {
                     setStartingAmount(parseFloat(settingsRes.settings.starting_amount || 0));
                 }
                 if (billsRes.success) setBills(billsRes.bills || []);
-                if (upcomingRes.success) setUpcoming(upcomingRes.expenses || []);
+                if (upcomingRes.success) {
+                    const initialized = (upcomingRes.expenses || []).map(item => ({
+                        ...item,
+                        hold_amount: item.hold_amount ?? parseFloat(item.amount)
+                    }));
+                    setUpcoming(initialized);
+                }
                 setLoading(false);
             })
             .catch(err => {
@@ -60,17 +66,6 @@ const Dashboard = ({ user, ready }) => {
                 setLoading(false);
             });
     }, [ready, user]);
-
-    useEffect(() => {
-        if (upcoming.length === 0) return;
-
-        setUpcoming(prev =>
-            prev.map(item => ({
-                ...item,
-                hold_amount: item.hold_amount ?? parseFloat(item.amount)
-            }))
-        );
-    }, [upcoming.length]);
 
 
     // Apply view mode from settings + auto responsive behavior
@@ -128,6 +123,27 @@ const Dashboard = ({ user, ready }) => {
             )
         );
     };
+
+    const saveStartingAmount = (value) => {
+        fetch(`${API}/settings.php`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                user_id: user.id,
+                starting_amount: value
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                setSettings(prev => ({
+                    ...prev,
+                    starting_amount: value
+                }));
+            }
+        });
+    };
+
 
     const deleteUpcoming = (id) => {
         const payload = { id, user_id: user.id };
@@ -312,6 +328,7 @@ const Dashboard = ({ user, ready }) => {
                     step="0.01"
                     value={startingAmount}
                     onChange={(e) => setStartingAmount(parseFloat(e.target.value))}
+                    onBlur={() => saveStartingAmount(startingAmount)}
                     className="form-control"
                     style={{ width: "200px" }}
                 />
