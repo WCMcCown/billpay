@@ -1,168 +1,116 @@
-import React, { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
 
-const EditUpcomingExpense = ({ user }) => {
-    const { id } = useParams();
-    const navigate = useNavigate();
-
+export default function EditUpcomingExpense({ expenseId, user, onClose }) {
+    const [expense, setExpense] = useState(null);
     const [loading, setLoading] = useState(true);
-
-    const [name, setName] = useState("");
-    const [amount, setAmount] = useState("");
-    const [holdAmount, setHoldAmount] = useState("");
-    const [dueDate, setDueDate] = useState("");
-    const [notes, setNotes] = useState("");
-
     const [saving, setSaving] = useState(false);
-    const [message, setMessage] = useState("");
+
+    const API = "http://127.0.0.1/bill/backend/api";
 
     useEffect(() => {
-        if (!user?.id || !id) return;
-
-        fetch(`http://127.0.0.1/api/upcoming_expenses.php?user_id=${user.id}`)
+        fetch(`${API}/upcoming_expenses.php?id=${expenseId}&user_id=${user.id}`)
             .then(res => res.json())
             .then(data => {
-                if (data.success) {
-                    const expense = data.expenses.find(e => e.id === id || e.id === parseInt(id));
-                    if (expense) {
-                        setName(expense.name);
-                        setAmount(expense.amount);
-                        setHoldAmount(expense.hold_amount);
-                        setDueDate(expense.due_date || "");
-                        setNotes(expense.notes || "");
-                    }
-                }
+                const found = data.expenses?.find(e => e.id == expenseId);
+                setExpense(found || null);
                 setLoading(false);
-            })
-            .catch(() => setLoading(false));
-    }, [user, id]);
+            });
+    }, [expenseId, user.id]);
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        if (!user?.id) return;
-
-        if (!name || !amount) {
-            setMessage("Name and amount are required.");
-            return;
-        }
-
-        setSaving(true);
-        setMessage("");
-
-        const payload = {
-            id: parseInt(id),
-            user_id: user.id,
-            name,
-            amount: parseFloat(amount),
-            hold_amount: parseFloat(holdAmount),
-            due_date: dueDate || null,
-            notes: notes || null
+    // ENTER TO SAVE
+    useEffect(() => {
+        const handleKey = (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                handleSave();
+            }
         };
 
-        fetch("http://127.0.0.1/api/upcoming_expenses.php", {
+        window.addEventListener("keydown", handleKey);
+        return () => window.removeEventListener("keydown", handleKey);
+    }, [expense]); 
+    // expense in deps ensures the latest state is saved
+
+    const handleSave = () => {
+        setSaving(true);
+
+        fetch(`${API}/upcoming_expenses.php`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
+            body: JSON.stringify({ ...expense, user_id: user.id })
         })
             .then(res => res.json())
             .then(data => {
-                if (data.success) {
-                    navigate("/dashboard");
-                } else {
-                    setMessage("Error updating upcoming expense.");
-                }
-                setSaving(false);
-            })
-            .catch(() => {
-                setMessage("Error updating upcoming expense.");
-                setSaving(false);
+                onClose(data.expense || null);
             });
     };
 
-    if (loading) return <div>Loading expense…</div>;
+    if (loading || !expense) return null;
 
     return (
-        <div style={{ maxWidth: "600px", margin: "0 auto" }}>
-            <h2>Edit Upcoming Expense</h2>
+        <>
+            <h2 style={{ marginBottom: "12px" }}>Edit Upcoming Expense</h2>
 
-            {message && (
-                <div style={{ marginBottom: "10px", color: "red" }}>
-                    {message}
+            <div className="section">
+                <h4>General Info</h4>
+
+                <label className="form-label">Name</label>
+                <input
+                    className="form-input"
+                    value={expense.name}
+                    onChange={(e) => setExpense({ ...expense, name: e.target.value })}
+                />
+
+                <div className="form-grid">
+                    <div>
+                        <label className="form-label">Amount</label>
+                        <input
+                            className="form-input"
+                            type="number"
+                            step="0.01"
+                            value={expense.amount}
+                            onChange={(e) => setExpense({ ...expense, amount: e.target.value })}
+                        />
+                    </div>
+
+                    <div>
+                        <label className="form-label">Due Date</label>
+                        <input
+                            className="form-input"
+                            type="date"
+                            value={expense.due_date}
+                            onChange={(e) => setExpense({ ...expense, due_date: e.target.value })}
+                        />
+                    </div>
                 </div>
-            )}
+            </div>
 
-            <form onSubmit={handleSubmit}>
+            <div className="section">
+                <h4>Notes</h4>
+                <textarea
+                    className="form-input"
+                    rows="3"
+                    value={expense.notes}
+                    onChange={(e) => setExpense({ ...expense, notes: e.target.value })}
+                />
+            </div>
 
-                {/* Name */}
-                <div className="form-group" style={{ marginBottom: "20px" }}>
-                    <label>Name</label>
-                    <input
-                        type="text"
-                        className="form-control"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        required
-                    />
-                </div>
-
-                {/* Amount */}
-                <div className="form-group" style={{ marginBottom: "20px" }}>
-                    <label>Amount</label>
-                    <input
-                        type="number"
-                        step="0.01"
-                        className="form-control"
-                        value={amount}
-                        onChange={(e) => setAmount(e.target.value)}
-                        required
-                    />
-                </div>
-
-                {/* Hold Amount */}
-                <div className="form-group" style={{ marginBottom: "20px" }}>
-                    <label>Hold Amount</label>
-                    <input
-                        type="number"
-                        step="0.01"
-                        className="form-control"
-                        value={holdAmount}
-                        onChange={(e) => setHoldAmount(e.target.value)}
-                        required
-                    />
-                </div>
-
-                {/* Due Date (optional) */}
-                <div className="form-group" style={{ marginBottom: "20px" }}>
-                    <label>Due Date (optional)</label>
-                    <input
-                        type="date"
-                        className="form-control"
-                        value={dueDate || ""}
-                        onChange={(e) => setDueDate(e.target.value)}
-                    />
-                </div>
-
-                {/* Notes */}
-                <div className="form-group" style={{ marginBottom: "20px" }}>
-                    <label>Notes (optional)</label>
-                    <textarea
-                        className="form-control"
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        rows="3"
-                    />
-                </div>
-
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
                 <button
-                    type="submit"
-                    className="btn btn-primary"
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => onClose(null)}
+                >
+                    Cancel
+                </button>
+                <button
+                    className="btn-primary"
+                    onClick={handleSave}
                     disabled={saving}
                 >
-                    {saving ? "Saving…" : "Save Changes"}
+                    {saving ? "Saving..." : "Save Changes"}
                 </button>
-            </form>
-        </div>
+            </div>
+        </>
     );
-};
-
-export default EditUpcomingExpense;
+}

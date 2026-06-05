@@ -1,231 +1,350 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
 
-export default function EditBill() {
-  const navigate = useNavigate();
-  const { id } = useParams();
-  const user = JSON.parse(localStorage.getItem("user"));
+export default function EditBill({ billId, onClose }) {
+    const [bill, setBill] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
 
-  const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({
-    user_id: user.id,
-    name: "",
-    amount: "",
-    due_day: "",
-    type: "recurring",
-    frequency: 1,
-    hold_amount: 0,
-    autopay: false,
-    link: "",
-    apr: 0,
-    remaining: "",
-    category: "",
-    notes: ""
-  });
+    const storedUser = JSON.parse(localStorage.getItem("user"));
+    const userId = storedUser?.id;
 
-  // Load existing bill
-  useEffect(() => {
-    async function loadBill() {
-      try {
-        const response = await fetch(
-          `http://127.0.0.1/bill/backend/api/bills.php?user_id=${user.id}`
-        );
-        const data = await response.json();
+    const money = (n) => `$${parseFloat(n || 0).toFixed(2)}`;
 
-        if (data.success) {
-          const bill = data.bills.find((b) => b.id === id || b.id === Number(id));
+    const payoffEstimate = (remaining, apr, monthlyPayment) => {
+        remaining = parseFloat(remaining);
+        apr = parseFloat(apr);
+        monthlyPayment = parseFloat(monthlyPayment);
 
-          if (!bill) {
-            alert("Bill not found");
-            navigate("/dashboard");
-            return;
-          }
-
-          setForm({
-            user_id: user.id,
-            name: bill.name,
-            amount: bill.amount,
-            due_day: bill.due_day,
-            type: bill.type,
-            frequency: bill.frequency,
-            hold_amount: bill.hold_amount,
-            autopay: bill.autopay == 1,
-            link: bill.link || "",
-            apr: bill.apr,
-            remaining: bill.remaining,
-            category: bill.category || "",
-            notes: bill.notes || "",
-            id: bill.id
-          });
+        if (monthlyPayment <= 0 || remaining <= 0) {
+            return { months: 0, date: "", totalInterest: 0 };
         }
-      } catch (err) {
-        console.error("Failed to load bill:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
 
-    loadBill();
-  }, [id, user.id, navigate]);
+        const monthlyRate = apr / 100 / 12;
 
-  function updateField(e) {
-    const { name, value, type, checked } = e.target;
-    setForm((f) => ({
-      ...f,
-      [name]: type === "checkbox" ? checked : value
-    }));
-  }
+        if (monthlyRate === 0) {
+            const months = Math.ceil(remaining / monthlyPayment);
+            const payoffDate = new Date();
+            payoffDate.setMonth(payoffDate.getMonth() + months);
+            return {
+                months,
+                date: payoffDate.toLocaleDateString("en-US"),
+                totalInterest: 0
+            };
+        }
 
-  async function handleSubmit(e) {
-    e.preventDefault();
+        const numerator = -Math.log(1 - (monthlyRate * remaining) / monthlyPayment);
+        const denominator = Math.log(1 + monthlyRate);
 
-    const response = await fetch(
-      "http://127.0.0.1/bill/backend/api/bills.php",
-      {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form)
-      }
+        let months = Math.ceil(numerator / denominator);
+
+        if (!isFinite(months) || months < 0) {
+            return { months: Infinity, date: "Never", totalInterest: Infinity };
+        }
+
+        const totalPaid = months * monthlyPayment;
+        const totalInterest = (totalPaid - remaining).toFixed(2);
+
+        const payoffDate = new Date();
+        payoffDate.setMonth(payoffDate.getMonth() + months);
+
+        return {
+            months,
+            date: payoffDate.toLocaleDateString("en-US"),
+            totalInterest
+        };
+    };
+
+    useEffect(() => {
+        if (!userId) return;
+
+        fetch(`http://127.0.0.1/bill/backend/api/bills.php?id=${billId}&user_id=${userId}`)
+            .then(res => res.json())
+            .then(data => {
+                const found = data.bills?.find(b => b.id == billId);
+                setBill(found || null);
+                setLoading(false);
+            })
+            .catch(() => setLoading(false));
+    }, [billId, userId]);
+
+    useEffect(() => {
+        const handleKey = (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                handleSave();
+            }
+        };
+
+        window.addEventListener("keydown", handleKey);
+        return () => window.removeEventListener("keydown", handleKey);
+    }, [bill]);
+
+    const handleSave = () => {
+        setSaving(true);
+
+        fetch("http://127.0.0.1/bill/backend/api/bills.php", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...bill, user_id: userId })
+        })
+            .then(res => res.json())
+            .then(data => {
+                onClose(data.bill || null);
+            });
+    };
+
+    if (loading || !bill) return null;
+
+    const isDebt = bill.type === "debt";
+    const payoff = isDebt
+        ? payoffEstimate(bill.remaining, bill.apr, bill.amount)
+        : null;
+
+    const frequencyOptions = [
+        { label: "Weekly", value: 0.25 },
+        { label: "Every 2 weeks", value: 0.5 },
+        { label: "Monthly", value: 1 },
+        { label: "Every 2 months", value: 2 },
+        { label: "Every 3 months", value: 3 },
+        { label: "Every 6 months", value: 6 },
+        { label: "Yearly", value: 12 },
+        { label: "Custom", value: "custom" }
+    ];
+
+    const isCustomFrequency =
+        bill.frequency !== "" &&
+        !frequencyOptions.some(opt => opt.value == bill.frequency);
+
+    return (
+        <>
+            <h2 style={{ marginBottom: "12px", color: "var(--primary-dark)" }}>
+                Edit Bill
+            </h2>
+
+            {/* ----------------------------- */}
+            {/* General Info */}
+            {/* ----------------------------- */}
+            <div className="section">
+                <h4>General Info</h4>
+
+                <label className="form-label">Name</label>
+                <input
+                    className="form-input"
+                    value={bill.name}
+                    onChange={(e) => setBill({ ...bill, name: e.target.value })}
+                />
+
+                <div className="form-grid">
+                    <div>
+                        <label className="form-label">Amount</label>
+                        <input
+                            className="form-input"
+                            type="number"
+                            step="0.01"
+                            value={bill.amount}
+                            onChange={(e) => setBill({ ...bill, amount: e.target.value })}
+                        />
+                    </div>
+
+                    <div>
+                        <label className="form-label">Due Date</label>
+                        <select
+                            className="form-input"
+                            value={bill.due_day}
+                            onChange={(e) => setBill({ ...bill, due_day: e.target.value })}
+                        >
+                            {[...Array(31)].map((_, i) => (
+                                <option key={i + 1} value={i + 1}>
+                                    {i + 1}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+
+                <div className="form-grid">
+                    <div>
+                        <label className="form-label">Type</label>
+                        <select
+                            className="form-input"
+                            value={bill.type}
+                            onChange={(e) => setBill({ ...bill, type: e.target.value })}
+                        >
+                            <option value="recurring">Recurring</option>
+                            <option value="debt">Debt</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="form-label">Category</label>
+                        <select
+                            className="form-input"
+                            value={bill.category}
+                            onChange={(e) => setBill({ ...bill, category: e.target.value })}
+                        >
+                            <option value="Housing">Housing</option>
+                            <option value="Utilities">Utilities</option>
+                            <option value="Insurance">Insurance</option>
+                            <option value="Subscriptions">Subscriptions</option>
+                            <option value="Debt">Debt</option>
+                            <option value="Savings">Savings</option>
+                            <option value="Miscellaneous">Miscellaneous</option>
+                        </select>
+                    </div>
+                </div>
+
+                <label className="form-label">Link</label>
+                <input
+                    className="form-input"
+                    type="text"
+                    value={bill.link}
+                    onChange={(e) => setBill({ ...bill, link: e.target.value })}
+                />
+            </div>
+
+            {/* ----------------------------- */}
+            {/* Billing Settings */}
+            {/* ----------------------------- */}
+            <div className="section">
+                <h4>Billing Settings</h4>
+
+                <div className="form-grid">
+                    <div>
+                        <label className="form-label">Frequency</label>
+                        <select
+                            className="form-input"
+                            value={isCustomFrequency ? "custom" : bill.frequency}
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                if (val === "custom") {
+                                    setBill({ ...bill, frequency: "" });
+                                } else {
+                                    setBill({ ...bill, frequency: val });
+                                }
+                            }}
+                        >
+                            {frequencyOptions.map(opt => (
+                                <option key={opt.label} value={opt.value}>
+                                    {opt.label}
+                                </option>
+                            ))}
+                        </select>
+
+                        {(bill.frequency === "" || isCustomFrequency) && (
+                            <input
+                                className="form-input"
+                                type="number"
+                                step="0.01"
+                                placeholder="Custom (months)"
+                                value={bill.frequency}
+                                onChange={(e) =>
+                                    setBill({ ...bill, frequency: e.target.value })
+                                }
+                            />
+                        )}
+                    </div>
+
+                    <div>
+                        <label className="form-label">Autopay</label>
+                        <div style={{ marginTop: "6px" }}>
+                            <div
+                                className={`toggle ${bill.autopay ? "on" : ""}`}
+                                onClick={() =>
+                                    setBill({ ...bill, autopay: bill.autopay ? 0 : 1 })
+                                }
+                            >
+                                <div className="toggle-circle"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* ----------------------------- */}
+            {/* Debt Details */}
+            {/* ----------------------------- */}
+            {isDebt && (
+                <div className="section">
+                    <h4>Debt Details</h4>
+
+                    <div className="form-grid">
+                        <div>
+                            <label className="form-label">Remaining Balance</label>
+                            <input
+                                className="form-input"
+                                type="number"
+                                step="0.01"
+                                value={bill.remaining}
+                                onChange={(e) =>
+                                    setBill({ ...bill, remaining: e.target.value })
+                                }
+                            />
+                        </div>
+
+                        <div>
+                            <label className="form-label">APR (%)</label>
+                            <input
+                                className="form-input"
+                                type="number"
+                                step="0.01"
+                                value={bill.apr}
+                                onChange={(e) =>
+                                    setBill({ ...bill, apr: e.target.value })
+                                }
+                            />
+                        </div>
+                    </div>
+
+                    <div
+                        className="full"
+                        style={{
+                            marginTop: "10px",
+                            padding: "12px",
+                            background: "var(--accent-blue)",
+                            borderRadius: "var(--radius)"
+                        }}
+                    >
+                        <strong>Payoff Estimate</strong>
+                        <div>Months Left: {payoff.months}</div>
+                        <div>Payoff Date: {payoff.date}</div>
+                        <div>Total Interest Left: {money(payoff.totalInterest)}</div>
+                    </div>
+                </div>
+            )}
+
+            {/* ----------------------------- */}
+            {/* Notes */}
+            {/* ----------------------------- */}
+            <div className="section">
+                <h4>Notes</h4>
+                <textarea
+                    className="form-input"
+                    rows="3"
+                    value={bill.notes || ""}
+                    onChange={(e) => setBill({ ...bill, notes: e.target.value })}
+                />
+            </div>
+
+            {/* ----------------------------- */}
+            {/* Buttons */}
+            {/* ----------------------------- */}
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+                <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => onClose(null)}
+                >
+                    Cancel
+                </button>
+
+                <button
+                    className="btn-primary"
+                    onClick={handleSave}
+                    disabled={saving}
+                >
+                    {saving ? "Saving..." : "Save Changes"}
+                </button>
+            </div>
+        </>
     );
-
-    const data = await response.json();
-
-    if (data.success) {
-      navigate("/dashboard");
-    } else {
-      alert("Failed to update bill");
-      console.error(data);
-    }
-  }
-
-  if (loading) return <p>Loading…</p>;
-
-  return (
-    <div style={{ padding: "20px" }}>
-      <h1>Edit Bill</h1>
-
-      <form onSubmit={handleSubmit} style={{ maxWidth: "500px" }}>
-        
-        <label>Name</label>
-        <input
-          name="name"
-          value={form.name}
-          onChange={updateField}
-          required
-        />
-
-        <label>Amount</label>
-        <input
-          name="amount"
-          type="number"
-          step="0.01"
-          value={form.amount}
-          onChange={updateField}
-          required
-        />
-
-        <label>Due Day (1–31)</label>
-        <input
-          name="due_day"
-          type="number"
-          min="1"
-          max="31"
-          value={form.due_day}
-          onChange={updateField}
-          required
-        />
-
-        <label>Type</label>
-        <select name="type" value={form.type} onChange={updateField}>
-          <option value="recurring">Recurring</option>
-          <option value="debt">Debt</option>
-        </select>
-
-        <label>Frequency (months)</label>
-        <input
-          name="frequency"
-          type="number"
-          step="0.01"
-          value={form.frequency}
-          onChange={updateField}
-        />
-
-        <label>Hold Amount</label>
-        <input
-          name="hold_amount"
-          type="number"
-          step="0.01"
-          value={form.hold_amount}
-          onChange={updateField}
-        />
-
-        <label>
-          <input
-            type="checkbox"
-            name="autopay"
-            checked={form.autopay}
-            onChange={updateField}
-          />
-          Autopay
-        </label>
-
-        <label>Payment Link (optional)</label>
-        <input
-          name="link"
-          value={form.link}
-          onChange={updateField}
-        />
-
-        {form.type === "debt" && (
-          <>
-            <label>APR (for debts)</label>
-            <input
-              name="apr"
-              type="number"
-              step="0.01"
-              value={form.apr}
-              onChange={updateField}
-            />
-
-            <label>Remaining Balance (for debts)</label>
-            <input
-              name="remaining"
-              type="number"
-              step="0.01"
-              value={form.remaining}
-              onChange={updateField}
-            />
-          </>
-        )}
-
-        <label>Category</label>
-        <select name="category" value={form.category} onChange={updateField}>
-          <option value="">Select a category</option>
-          <option value="Housing">Housing</option>
-          <option value="Utilities">Utilities</option>
-          <option value="Insurance">Insurance</option>
-          <option value="Transportation">Transportation</option>
-          <option value="Medical">Medical</option>
-          <option value="Loans">Loans</option>
-          <option value="Credit Cards">Credit Cards</option>
-          <option value="Investments">Investments</option>
-          <option value="Savings">Savings</option>
-          <option value="Subscriptions">Subscriptions</option>
-          <option value="Miscellaneous">Miscellaneous</option>
-        </select>
-
-        <label>Notes</label>
-        <textarea
-          name="notes"
-          value={form.notes}
-          onChange={updateField}
-          rows="4"
-        />
-
-        <button type="submit" style={{ marginTop: "20px" }}>
-          Save Changes
-        </button>
-      </form>
-    </div>
-  );
 }

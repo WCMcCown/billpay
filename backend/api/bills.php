@@ -43,16 +43,16 @@ try {
 
         $required = ['user_id','name','amount','due_day','type'];
         foreach ($required as $field) {
-            if (empty($data[$field])) {
+            if (!isset($data[$field]) || $data[$field] === "") {
                 echo json_encode(["success" => false, "message" => "Missing field: $field"]);
                 exit;
             }
-        }
+}
 
         $stmt = $pdo->prepare("
             INSERT INTO bills 
-            (user_id, name, amount, due_day, type, frequency, hold_amount, autopay, link, apr, remaining, category, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (user_id, name, amount, due_day, type, frequency, autopay, link, apr, remaining, category, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
 
         $success = $stmt->execute([
@@ -62,17 +62,31 @@ try {
             $data['due_day'],
             $data['type'],
             $data['frequency'] ?? 1,
-            $data['hold_amount'] ?? 0,
             !empty($data['autopay']) ? 1 : 0,
             $data['link'] ?? null,
             $data['apr'] ?? 0,
-            $data['remaining'] ?? $data['amount'],
+            isset($data['remaining']) && $data['remaining'] !== ""
+                ? $data['remaining']
+                : $data['amount'],
             $data['category'] ?? null,
             $data['notes'] ?? null
         ]);
 
-        echo json_encode(["success" => $success]);
+        $newId = $pdo->lastInsertId();
+
+        // Fetch the newly created bill
+        $query = "SELECT * FROM bills WHERE id = :id LIMIT 1";
+        $stmt = $pdo->prepare($query);
+        $stmt->bindParam(":id", $newId);
+        $stmt->execute();
+        $newBill = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        echo json_encode([
+            "success" => true,
+            "bill" => $newBill
+        ]);
         exit;
+
     }
 
     // -------------------------
@@ -88,7 +102,7 @@ try {
 
         $stmt = $pdo->prepare("
             UPDATE bills SET 
-                name = ?, amount = ?, due_day = ?, type = ?, frequency = ?, hold_amount = ?, 
+                name = ?, amount = ?, due_day = ?, type = ?, frequency = ?, 
                 autopay = ?, link = ?, apr = ?, remaining = ?, category = ?, notes = ?
             WHERE id = ? AND user_id = ?
         ");
@@ -99,7 +113,6 @@ try {
             $data['due_day'],
             $data['type'],
             $data['frequency'],
-            $data['hold_amount'],
             !empty($data['autopay']) ? 1 : 0,
             $data['link'],
             $data['apr'],
@@ -110,7 +123,17 @@ try {
             $data['user_id']
         ]);
 
-        echo json_encode(["success" => $success]);
+        // Fetch updated bill
+        $query = "SELECT * FROM bills WHERE id = :id LIMIT 1";
+        $stmt = $pdo->prepare($query);
+        $stmt->bindParam(":id", $data['id']);
+        $stmt->execute();
+        $updatedBill = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        echo json_encode([
+            "success" => true,
+            "bill" => $updatedBill
+        ]);
         exit;
     }
 

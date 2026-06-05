@@ -6,18 +6,24 @@ const Settings = ({ user }) => {
 
     const [payFrequency, setPayFrequency] = useState("");
     const [nextPayday, setNextPayday] = useState("");
+    const [viewMode, setViewMode] = useState("auto");
+    const [startingAmount, setStartingAmount] = useState(0);
 
     const [message, setMessage] = useState("");
+
+    const API = "http://127.0.0.1/bill/backend/api";
 
     useEffect(() => {
         if (!user?.id) return;
 
-        fetch(`http://127.0.0.1/api/settings.php?user_id=${user.id}`)
+        fetch(`${API}/settings.php?user_id=${user.id}`)
             .then(res => res.json())
             .then(data => {
                 if (data.success && data.settings) {
                     setPayFrequency(data.settings.pay_frequency || "");
                     setNextPayday(data.settings.next_payday || "");
+                    setViewMode(data.settings.view_mode || "auto");
+                    setStartingAmount(data.settings.starting_amount || 0);
                 }
                 setLoading(false);
             })
@@ -33,10 +39,12 @@ const Settings = ({ user }) => {
         const payload = {
             user_id: user.id,
             pay_frequency: payFrequency,
-            next_payday: nextPayday || null
+            next_payday: nextPayday || null,
+            view_mode: viewMode,
+            starting_amount: startingAmount
         };
 
-        fetch("http://127.0.0.1/api/settings.php", {
+        fetch(`${API}/settings.php`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
@@ -68,6 +76,19 @@ const Settings = ({ user }) => {
                 </div>
             )}
 
+            {/* Starting Amount */}
+            <div className="form-group" style={{ marginBottom: "20px" }}>
+                <label>Starting Amount (Cash on Hand)</label>
+                <input
+                    type="number"
+                    step="0.01"
+                    value={startingAmount}
+                    onChange={(e) => setStartingAmount(e.target.value)}
+                    className="form-control"
+                />
+            </div>
+
+
             {/* Pay Frequency */}
             <div className="form-group" style={{ marginBottom: "20px" }}>
                 <label>Pay Frequency</label>
@@ -93,6 +114,20 @@ const Settings = ({ user }) => {
                     onChange={(e) => setNextPayday(e.target.value)}
                     className="form-control"
                 />
+            </div>
+
+            {/* View Mode */}
+            <div className="form-group" style={{ marginBottom: "20px" }}>
+                <label>Default View Mode</label>
+                <select
+                    value={viewMode}
+                    onChange={(e) => setViewMode(e.target.value)}
+                    className="form-control"
+                >
+                    <option value="auto">Auto (Responsive)</option>
+                    <option value="table">Table View</option>
+                    <option value="cards">Card View</option>
+                </select>
             </div>
 
             <button
