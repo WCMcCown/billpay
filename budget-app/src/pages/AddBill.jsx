@@ -207,7 +207,7 @@ export default function AddBill({ user, onClose }) {
                 >
                     Cancel
                 </button>
-                <button className="btn-primary" onClick={handleSave}>Save</button>
+                <button type="submit" className="btn-primary">Save</button>
             </div>
         </form>
     );
