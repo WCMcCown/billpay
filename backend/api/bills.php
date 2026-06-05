@@ -43,16 +43,16 @@ try {
 
         $required = ['user_id','name','amount','due_day','type'];
         foreach ($required as $field) {
-            if (empty($data[$field])) {
+            if (!isset($data[$field]) || $data[$field] === "") {
                 echo json_encode(["success" => false, "message" => "Missing field: $field"]);
                 exit;
             }
-        }
+}
 
         $stmt = $pdo->prepare("
             INSERT INTO bills 
-            (user_id, name, amount, due_day, type, frequency, hold_amount, autopay, link, apr, remaining, category, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (user_id, name, amount, due_day, type, frequency, autopay, link, apr, remaining, category, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
 
         $success = $stmt->execute([
@@ -62,16 +62,15 @@ try {
             $data['due_day'],
             $data['type'],
             $data['frequency'] ?? 1,
-            $data['hold_amount'] ?? 0,
             !empty($data['autopay']) ? 1 : 0,
             $data['link'] ?? null,
             $data['apr'] ?? 0,
-            $data['remaining'] ?? $data['amount'],
+            isset($data['remaining']) && $data['remaining'] !== ""
+                ? $data['remaining']
+                : $data['amount'],
             $data['category'] ?? null,
             $data['notes'] ?? null
         ]);
-
-        $stmt->execute();
 
         $newId = $pdo->lastInsertId();
 
@@ -103,7 +102,7 @@ try {
 
         $stmt = $pdo->prepare("
             UPDATE bills SET 
-                name = ?, amount = ?, due_day = ?, type = ?, frequency = ?, hold_amount = ?, 
+                name = ?, amount = ?, due_day = ?, type = ?, frequency = ?, 
                 autopay = ?, link = ?, apr = ?, remaining = ?, category = ?, notes = ?
             WHERE id = ? AND user_id = ?
         ");
@@ -114,7 +113,6 @@ try {
             $data['due_day'],
             $data['type'],
             $data['frequency'],
-            $data['hold_amount'],
             !empty($data['autopay']) ? 1 : 0,
             $data['link'],
             $data['apr'],
@@ -124,8 +122,6 @@ try {
             $data['id'],
             $data['user_id']
         ]);
-
-        $stmt->execute();
 
         // Fetch updated bill
         $query = "SELECT * FROM bills WHERE id = :id LIMIT 1";

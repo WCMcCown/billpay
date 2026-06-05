@@ -42,7 +42,8 @@ switch ($method) {
                 "user_id" => $user_id,
                 "pay_frequency" => null,
                 "next_payday" => null,
-                "view_mode" => "auto"
+                "view_mode" => "auto",
+                "starting_amount" => 0
             ];
         }
 
@@ -62,6 +63,7 @@ switch ($method) {
         $pay_frequency = $data['pay_frequency'] ?? null;
         $next_payday = !empty($data['next_payday']) ? $data['next_payday'] : null;
         $view_mode = $data['view_mode'] ?? "auto";
+        $starting_amount = isset($data['starting_amount']) ? floatval($data['starting_amount']) : 0;
 
         $check = $pdo->prepare("SELECT id FROM settings WHERE user_id = :user_id LIMIT 1");
         $check->bindParam(":user_id", $user_id);
@@ -72,13 +74,14 @@ switch ($method) {
                         pay_frequency = :pay_frequency,
                         next_payday = :next_payday,
                         view_mode = :view_mode,
+                        starting_amount = :starting_amount,
                         updated_at = NOW()
                       WHERE user_id = :user_id";
         } else {
             $query = "INSERT INTO settings 
-                        (user_id, pay_frequency, next_payday, view_mode) 
+                        (user_id, pay_frequency, next_payday, view_mode, starting_amount) 
                       VALUES 
-                        (:user_id, :pay_frequency, :next_payday, :view_mode)";
+                        (:user_id, :pay_frequency, :next_payday, :view_mode, :starting_amount)";
         }
 
         $stmt = $pdo->prepare($query);
@@ -86,7 +89,7 @@ switch ($method) {
         $stmt->bindParam(":pay_frequency", $pay_frequency);
         $stmt->bindParam(":next_payday", $next_payday);
         $stmt->bindParam(":view_mode", $view_mode);
-
+        $stmt->bindParam(":starting_amount", $starting_amount);
         $stmt->execute();
 
         echo json_encode(["success" => true, "message" => "Settings saved"]);

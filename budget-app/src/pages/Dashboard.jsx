@@ -1,32 +1,43 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
-// Import Add/Edit Modals
 import EditBill from "./EditBill";
 import AddBill from "./AddBill";
 import AddUpcomingExpense from "./AddUpcomingExpense";
 import EditUpcomingExpense from "./EditUpcomingExpense";
 import Modal from "../components/Modal";
 
+
 const Dashboard = ({ user, ready }) => {
     const [loading, setLoading] = useState(true);
-
     const [settings, setSettings] = useState(null);
-    const [bills, setBills] = useState([]);
-    const [upcoming, setUpcoming] = useState([]);
 
-    const [viewMode, setViewMode] = useState("table");
+    const [bills, setBills] = useState([]);
+    const [expandedBills, setExpandedBills] = useState({});
+    const [upcoming, setUpcoming] = useState([]);
+    const [startingAmount, setStartingAmount] = useState(0);
+
+    const [viewMode, setViewMode] = useState(null);
 
     const [totalBillsHold, setTotalBillsHold] = useState(0);
     const [totalUpcomingHold, setTotalUpcomingHold] = useState(0);
+
     const [editingBillId, setEditingBillId] = useState(null);
     const [addingBill, setAddingBill] = useState(false);
-    const [addingUpcoming, setAddingUpcoming] = useState(false);
-    const [editingUpcomingId, setEditingUpcomingId] = useState(null);  
 
+    const [addingUpcoming, setAddingUpcoming] = useState(false);
+    const [editingUpcomingId, setEditingUpcomingId] = useState(null);
 
     const API = "http://127.0.0.1/bill/backend/api";
 
+    const toggleBillExpand = (id) => {
+            setExpandedBills(prev => ({
+                ...prev,
+                [id]: !prev[id]
+            }));
+        };
+
+    // Load settings + bills + upcoming
     useEffect(() => {
         if (!ready || !user?.id) return;
 
@@ -35,58 +46,87 @@ const Dashboard = ({ user, ready }) => {
             fetch(`${API}/bills.php?user_id=${user.id}`).then(r => r.json()),
             fetch(`${API}/upcoming_expenses.php?user_id=${user.id}`).then(r => r.json())
         ])
-        .then(([settingsRes, billsRes, upcomingRes]) => {
-
-            if (settingsRes.success) setSettings(settingsRes.settings);
-            if (billsRes.success) setBills(billsRes.bills || []);
-            if (upcomingRes.success) setUpcoming(upcomingRes.expenses || []);
-
-            setLoading(false);
-        })
-        .catch(err => {
-            console.error("FETCH FAILED:", err);
-            setLoading(false);
-        });
+            .then(([settingsRes, billsRes, upcomingRes]) => {
+                if (settingsRes.success) {
+                    setSettings(settingsRes.settings);
+                    setStartingAmount(parseFloat(settingsRes.settings.starting_amount || 0));
+                }
+                if (billsRes.success) setBills(billsRes.bills || []);
+                if (upcomingRes.success) setUpcoming(upcomingRes.expenses || []);
+                setLoading(false);
+            })
+            .catch(err => {
+                console.error("FETCH FAILED:", err);
+                setLoading(false);
+            });
     }, [ready, user]);
 
-    const updateUpcomingHold = (id, newHold) => {
-        const payload = {
-            id,
-            user_id: user.id,
-            hold_amount: parseFloat(newHold)
-        };
+    useEffect(() => {
+        if (upcoming.length === 0) return;
 
-        fetch(`${API}/upcoming_expenses.php`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-        }).then(() => {
-            setUpcoming(prev =>
-                prev.map(item =>
-                    item.id === id ? { ...item, hold_amount: newHold } : item
-                )
-            );
-        });
+        setUpcoming(prev =>
+            prev.map(item => ({
+                ...item,
+                hold_amount: item.hold_amount ?? parseFloat(item.amount)
+            }))
+        );
+    }, [upcoming.length]);
+
+
+    // Apply view mode from settings + auto responsive behavior
+    useEffect(() => {
+        if (!settings) return;
+
+        if (settings.view_mode === "auto") {
+            const update = () => {
+                if (window.innerWidth < 768) {
+                    setViewMode("cards");
+                } else {
+                    setViewMode("table");
+                }
+            };
+
+            update();
+            window.addEventListener("resize", update);
+            return () => window.removeEventListener("resize", update);
+        }
+
+        setViewMode(settings.view_mode);
+    }, [settings]);
+
+    useEffect(() => {
+        if (!settings || bills.length === 0) return;
+
+        setBills(prev =>
+            prev.map(bill => {
+                const recommended = calculateHoldForBill(bill, settings);
+
+                return {
+                    ...bill,
+                    hold_amount:
+                        bill.hold_amount ?? recommended
+                };
+            })
+        );
+    }, [settings, bills.length]);
+
+
+
+    // Update hold amounts
+    const updateUpcomingHold = (id, newHold) => {
+        setUpcoming(prev =>
+            prev.map(u =>
+                u.id === id ? { ...u, hold_amount: newHold } : u
+            )
+        );
     };
 
     const updateBillHold = (id, newHold) => {
-        const payload = {
-            id,
-            user_id: user.id,
-            hold_amount: parseFloat(newHold)
-        };
-
-        fetch(`${API}/bills.php`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-        }).then(() => {
-            setBills(prev =>
-                prev.map(b =>
-                    b.id === id ? { ...b, hold_amount: newHold } : b
-                )
-            );
-        });
+        setBills(prev =>
+            prev.map(b =>
+                b.id === id ? { ...b, hold_amount: newHold } : b
+            )
+        );
     };
 
     const deleteUpcoming = (id) => {
@@ -117,18 +157,16 @@ const Dashboard = ({ user, ready }) => {
         } else {
             alert("Failed to delete bill");
         }
-        }
+    }
 
-    // Format currency
+    // Helpers
     const money = (n) => `$${parseFloat(n).toFixed(2)}`;
 
-    // Format date from YYYY-MM-DD → MM/DD/YYYY
     const formatDate = (dateStr) => {
         if (!dateStr) return "";
         return new Date(dateStr).toLocaleDateString("en-US");
     };
 
-    // Days until due (simple version)
     const daysUntilDue = (dueDay) => {
         const today = new Date();
         const currentDay = today.getDate();
@@ -137,7 +175,6 @@ const Dashboard = ({ user, ready }) => {
         return diff;
     };
 
-    // Next due date
     const nextDueDate = (dueDay) => {
         const today = new Date();
         let date = new Date(today.getFullYear(), today.getMonth(), dueDay);
@@ -145,24 +182,19 @@ const Dashboard = ({ user, ready }) => {
         return date.toLocaleDateString("en-US");
     };
 
-    // Monthly equivalent (frequency = times per month)
-    const monthlyEquivalent = (amount, frequency) => {
-        return (parseFloat(amount) * parseFloat(frequency)).toFixed(2);
-    };
+    const monthlyEquivalent = (amount, frequency) =>
+        (parseFloat(amount) * parseFloat(frequency)).toFixed(2);
 
-    // Interest per period (for debts)
     const interestPerPeriod = (apr, remaining) => {
         const rate = parseFloat(apr) / 100 / 12;
         return (remaining * rate).toFixed(2);
     };
 
-    // Interest per year (for debts)
     const interestPerYear = (apr, remaining) => {
         const rate = parseFloat(apr) / 100;
         return (remaining * rate).toFixed(2);
     };
 
-    // Roughly estimated pay off month
     const payoffEstimate = (remaining, apr, monthlyPayment) => {
         remaining = parseFloat(remaining);
         apr = parseFloat(apr);
@@ -174,7 +206,6 @@ const Dashboard = ({ user, ready }) => {
 
         const monthlyRate = apr / 100 / 12;
 
-        // If APR is 0, payoff is simple
         if (monthlyRate === 0) {
             const months = Math.ceil(remaining / monthlyPayment);
             const payoffDate = new Date();
@@ -186,23 +217,18 @@ const Dashboard = ({ user, ready }) => {
             };
         }
 
-        // Standard amortization formula:
-        // n = -log(1 - r*P/B) / log(1+r)
         const numerator = -Math.log(1 - (monthlyRate * remaining) / monthlyPayment);
         const denominator = Math.log(1 + monthlyRate);
 
         let months = Math.ceil(numerator / denominator);
 
-        // Prevent infinite loops if payment is too small
         if (!isFinite(months) || months < 0) {
             return { months: Infinity, date: "Never", totalInterest: Infinity };
         }
 
-        // Calculate total interest
         const totalPaid = months * monthlyPayment;
         const totalInterest = (totalPaid - remaining).toFixed(2);
 
-        // Calculate payoff date
         const payoffDate = new Date();
         payoffDate.setMonth(payoffDate.getMonth() + months);
 
@@ -213,8 +239,57 @@ const Dashboard = ({ user, ready }) => {
         };
     };
 
+    function calculateHoldForBill(bill, settings) {
+        const amount = parseFloat(bill.amount);
+        const frequencyMonths = parseFloat(bill.frequency); // e.g. 1 = monthly, 3 = quarterly
+
+        // Convert user pay frequency into months
+        const payFreqMap = {
+            weekly: 0.25,
+            biweekly: 0.5,
+            semimonthly: 0.5,
+            monthly: 1
+        };
+
+        const userPayMonths = payFreqMap[settings.pay_frequency];
+
+        // Paychecks per bill cycle
+        const paychecksPerCycle = frequencyMonths / userPayMonths;
+
+        // Amount to save per paycheck
+        const amountPerPaycheck = amount / paychecksPerCycle;
+
+        // Determine next due date
+        const today = new Date();
+        let due = new Date(today.getFullYear(), today.getMonth(), bill.due_day);
+        if (due < today) {
+            due = new Date(today.getFullYear(), today.getMonth() + 1, bill.due_day);
+        }
+
+        // Determine next payday
+        let nextPayday = new Date(settings.next_payday);
+
+        // Count paychecks passed since last due date
+        let lastDue = new Date(due);
+        lastDue.setMonth(lastDue.getMonth() - frequencyMonths);
+
+        let paychecksPassed = 0;
+        let temp = new Date(lastDue);
+
+        while (temp <= today) {
+            paychecksPassed++;
+            temp = new Date(temp.getTime() + userPayMonths * 30 * 24 * 60 * 60 * 1000);
+        }
+
+        // Hold amount = amountPerPaycheck * paychecksPassed
+        const holdAmount = amountPerPaycheck * paychecksPassed;
+
+        return parseFloat(holdAmount.toFixed(2));
+    }
 
 
+
+    // Totals
     useEffect(() => {
         const billsHold = bills.reduce((sum, b) => sum + parseFloat(b.hold_amount || 0), 0);
         const upcomingHold = upcoming.reduce((sum, u) => sum + parseFloat(u.hold_amount || 0), 0);
@@ -223,27 +298,23 @@ const Dashboard = ({ user, ready }) => {
         setTotalUpcomingHold(upcomingHold);
     }, [bills, upcoming]);
 
+
     if (loading) return <div>Loading dashboard…</div>;
 
     return (
         <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
             <h2>Dashboard</h2>
 
-            <div style={{ marginBottom: "20px" }}>
-                <button
-                    className={`btn ${viewMode === "table" ? "btn-primary" : "btn-secondary"}`}
-                    onClick={() => setViewMode("table")}
-                    style={{ marginRight: "10px" }}
-                >
-                    Table View
-                </button>
-
-                <button
-                    className={`btn ${viewMode === "cards" ? "btn-primary" : "btn-secondary"}`}
-                    onClick={() => setViewMode("cards")}
-                >
-                    Card View
-                </button>
+            <div style={{ marginBottom: "25px" }}>
+                <label><strong>Starting Amount (Cash on Hand):</strong></label>
+                <input
+                    type="number"
+                    step="0.01"
+                    value={startingAmount}
+                    onChange={(e) => setStartingAmount(parseFloat(e.target.value))}
+                    className="form-control"
+                    style={{ width: "200px" }}
+                />
             </div>
 
             {/* UPCOMING EXPENSES */}
@@ -258,7 +329,8 @@ const Dashboard = ({ user, ready }) => {
                     + Add Upcoming Expense
                 </button>
 
-                {viewMode === "table" ? (
+                {/* TABLE VIEW */}
+                {viewMode === "table" && (
                     <table className="table table-striped">
                         <thead>
                             <tr>
@@ -275,20 +347,17 @@ const Dashboard = ({ user, ready }) => {
                                 <tr key={item.id}>
                                     <td>{item.name}</td>
                                     <td>${parseFloat(item.amount).toFixed(2)}</td>
-
                                     <td>
                                         <input
                                             type="number"
                                             step="0.01"
-                                            value={item.hold_amount}
+                                            value={item.hold_amount ?? ""}
                                             onChange={(e) => updateUpcomingHold(item.id, e.target.value)}
                                             style={{ width: "90px" }}
                                         />
                                     </td>
-
                                     <td>{formatDate(item.due_date || "")}</td>
                                     <td>{item.notes || ""}</td>
-
                                     <td>
                                         <button
                                             className="btn btn-sm btn-primary"
@@ -297,8 +366,6 @@ const Dashboard = ({ user, ready }) => {
                                         >
                                             Edit
                                         </button>
-
-
                                         <button
                                             className="btn btn-sm btn-danger"
                                             onClick={() => deleteUpcoming(item.id)}
@@ -310,49 +377,126 @@ const Dashboard = ({ user, ready }) => {
                             ))}
                         </tbody>
                     </table>
-                ) : (
+                )}
+
+                {/* CARD VIEW */}
+                {viewMode === "cards" && (
                     <div>
-                        {upcoming.map(item => (
-                            <div
-                                key={item.id}
-                                className="card"
-                                style={{ marginBottom: "15px", padding: "15px" }}
-                            >
-                                <h4>{item.name}</h4>
-                                <p><strong>Amount:</strong> ${parseFloat(item.amount).toFixed(2)}</p>
+                        {bills.map(b => {
+                            const isDebt = b.type === "debt";
+                            const payoff = isDebt
+                                ? payoffEstimate(b.remaining, b.apr, b.amount)
+                                : null;
 
-                                <p>
-                                    <strong>Hold:</strong>
-                                    <input
-                                        type="number"
-                                        step="0.01"
-                                        value={item.hold_amount}
-                                        onChange={(e) => updateUpcomingHold(item.id, e.target.value)}
-                                        style={{ width: "100px", marginLeft: "10px" }}
-                                    />
-                                </p>
+                            const expanded = expandedBills[b.id];
 
-                                {item.due_date && <p><strong>Due:</strong> {item.due_date}</p>}
-                                {item.notes && <p><strong>Notes:</strong> {item.notes}</p>}
-
-                                <Link
-                                    to={`/edit-upcoming/${item.id}`}
-                                    className="btn btn-primary"
-                                    style={{ marginRight: "10px" }}
+                            return (
+                                <div
+                                    key={b.id}
+                                    className="card"
+                                    style={{
+                                        marginBottom: "15px",
+                                        padding: "15px",
+                                        border: "1px solid #ccc",
+                                        borderRadius: "8px"
+                                    }}
                                 >
-                                    Edit
-                                </Link>
+                                    {/* COLLAPSED HEADER */}
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            justifyContent: "space-between",
+                                            alignItems: "center",
+                                            cursor: "pointer"
+                                        }}
+                                        onClick={() => toggleBillExpand(b.id)}
+                                    >
+                                        <h4 style={{ margin: 0 }}>{b.name}</h4>
 
-                                <button
-                                    className="btn btn-danger"
-                                    onClick={() => deleteUpcoming(item.id)}
-                                >
-                                    Delete
-                                </button>
-                            </div>
-                        ))}
+                                        <button className="btn btn-sm btn-secondary">
+                                            {expanded ? "▲" : "▼"}
+                                        </button>
+                                    </div>
+
+                                    {/* SUMMARY ROW */}
+                                    <div style={{ marginTop: "10px" }}>
+                                        <p><strong>Amount:</strong> {money(b.amount)}</p>
+
+                                        <p>
+                                            <strong>Hold:</strong>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                value={b.hold_amount ?? ""}
+                                                onChange={(e) => updateBillHold(b.id, e.target.value)}
+                                                style={{ width: "100px", marginLeft: "10px" }}
+                                            />
+                                        </p>
+
+                                        <p><strong>Due Day:</strong> {b.due_day}</p>
+                                        <p><strong>Days Left:</strong> {daysUntilDue(b.due_day)}</p>
+                                    </div>
+
+                                    {/* EXPANDED DETAILS */}
+                                    {expanded && (
+                                        <div style={{ marginTop: "15px", paddingLeft: "10px" }}>
+                                            <p><strong>Next Due:</strong> {nextDueDate(b.due_day)}</p>
+                                            <p><strong>Monthly:</strong> {money(monthlyEquivalent(b.amount, b.frequency))}</p>
+
+                                            {isDebt && (
+                                                <>
+                                                    <p><strong>APR:</strong> {b.apr}%</p>
+                                                    <p><strong>Remaining:</strong> {money(b.remaining)}</p>
+                                                    <p><strong>Months Left:</strong> {payoff.months}</p>
+                                                    <p><strong>Payoff Date:</strong> {payoff.date}</p>
+                                                    <p><strong>Total Interest:</strong> {money(payoff.totalInterest)}</p>
+                                                    <p><strong>Interest / Mo:</strong> {money(interestPerPeriod(b.apr, b.remaining))}</p>
+                                                    <p><strong>Interest / Yr:</strong> {money(interestPerYear(b.apr, b.remaining))}</p>
+                                                </>
+                                            )}
+
+                                            {b.link && (
+                                                <p>
+                                                    <a
+                                                        href={b.link}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="btn btn-info"
+                                                    >
+                                                        Pay
+                                                    </a>
+                                                </p>
+                                            )}
+
+                                            {b.notes && (
+                                                <p><strong>Notes:</strong> {b.notes}</p>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* ACTION BUTTONS */}
+                                    <div style={{ marginTop: "15px" }}>
+                                        <button
+                                            className="btn btn-primary"
+                                            style={{ marginRight: "10px" }}
+                                            onClick={() => setEditingBillId(b.id)}
+                                        >
+                                            Edit
+                                        </button>
+
+                                        <button
+                                            className="btn btn-danger"
+                                            onClick={() => handleDelete(b.id)}
+                                        >
+                                            Delete
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })}
                     </div>
                 )}
+
             </div>
 
             {/* BILLS */}
@@ -366,127 +510,199 @@ const Dashboard = ({ user, ready }) => {
                     + Add Bill
                 </button>
 
-                <table className="table table-striped">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Amount</th>
-                            <th>Hold</th>
-                            <th>Due Day</th>
-                            <th>Next Due</th>
-                            <th>Days Left</th>
-                            <th>Monthly</th>
-                            <th>Autopay</th>
-                            <th>Category</th>
-                            <th>APR</th>
-                            <th>Remaining</th>
-                            <th>Months Left</th>
-                            <th>Payoff Date</th>
-                            <th>Total Interest Left</th>
-                            <th>Interest / Mo</th>
-                            <th>Interest / Yr</th>
-                            <th>Link</th>
-                            <th>Notes</th>
-                            <th></th>
-                        </tr>
-                    </thead>
+                {/* TABLE VIEW */}
+                {viewMode === "table" && (
+                    <table className="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Amount</th>
+                                <th>Hold</th>
+                                <th>Due Day</th>
+                                <th>Next Due</th>
+                                <th>Days Left</th>
+                                <th>Monthly</th>
+                                <th>Autopay</th>
+                                <th>Category</th>
+                                <th>APR</th>
+                                <th>Remaining</th>
+                                <th>Months Left</th>
+                                <th>Payoff Date</th>
+                                <th>Total Interest Left</th>
+                                <th>Interest / Mo</th>
+                                <th>Interest / Yr</th>
+                                <th>Link</th>
+                                <th>Notes</th>
+                                <th></th>
+                            </tr>
+                        </thead>
 
-                    <tbody>
-                        {bills.map(b => {
-                            const isDebt = b.type === "debt";
+                        <tbody>
+                            {bills.map(b => {
+                                const isDebt = b.type === "debt";
+                                const payoff = isDebt
+                                    ? payoffEstimate(b.remaining, b.apr, b.amount)
+                                    : null;
 
-                            return (
-                                <tr key={b.id}>
-                                    <td>{b.name}</td>
+                                return (
+                                    <tr key={b.id}>
+                                        <td>{b.name}</td>
+                                        <td>{money(b.amount)}</td>
 
-                                    <td>{money(b.amount)}</td>
+                                        <td>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                value={b.hold_amount ?? ""}
+                                                onChange={(e) => updateBillHold(b.id, e.target.value)}
+                                                style={{ width: "90px" }}
+                                            />
+                                        </td>
 
-                                    <td>
-                                        <input
-                                            type="number"
-                                            step="0.01"
-                                            value={b.hold_amount}
-                                            onChange={(e) => updateBillHold(b.id, e.target.value)}
-                                            style={{ width: "90px" }}
-                                        />
-                                    </td>
+                                        <td>{b.due_day}</td>
+                                        <td>{nextDueDate(b.due_day)}</td>
+                                        <td>{daysUntilDue(b.due_day)}</td>
+                                        <td>{money(monthlyEquivalent(b.amount, b.frequency))}</td>
+                                        <td>{b.autopay ? "Yes" : "No"}</td>
+                                        <td>{b.category || ""}</td>
 
-                                    <td>{b.due_day}</td>
+                                        <td>{isDebt ? `${b.apr}%` : ""}</td>
+                                        <td>{isDebt ? money(b.remaining) : ""}</td>
 
-                                    <td>{nextDueDate(b.due_day)}</td>
-
-                                    <td>{daysUntilDue(b.due_day)}</td>
-
-                                    <td>{money(monthlyEquivalent(b.amount, b.frequency))}</td>
-
-                                    <td>{b.autopay ? "Yes" : "No"}</td>
-
-                                    <td>{b.category || ""}</td>
-
-                                    {/* Debt-only fields */}
-                                    <td>{isDebt ? `${b.apr}%` : ""}</td>
-
-                                    <td>{isDebt ? money(b.remaining) : ""}</td>
-
-                                    {(() => {
-                                        if (!isDebt) return (
-                                            <>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                            </>
-                                        );
-
-                                        const payoff = payoffEstimate(b.remaining, b.apr, b.amount);
-
-                                        return (
+                                        {isDebt ? (
                                             <>
                                                 <td>{payoff.months === Infinity ? "∞" : payoff.months}</td>
                                                 <td>{payoff.date}</td>
                                                 <td>{money(payoff.totalInterest)}</td>
                                             </>
-                                        );
-                                    })()}
+                                        ) : (
+                                            <>
+                                                <td></td>
+                                                <td></td>
+                                                <td></td>
+                                            </>
+                                        )}
 
-                                    <td>{isDebt ? money(interestPerPeriod(b.apr, b.remaining)) : ""}</td>
+                                        <td>{isDebt ? money(interestPerPeriod(b.apr, b.remaining)) : ""}</td>
+                                        <td>{isDebt ? money(interestPerYear(b.apr, b.remaining)) : ""}</td>
 
-                                    <td>{isDebt ? money(interestPerYear(b.apr, b.remaining)) : ""}</td>
+                                        <td>
+                                            {b.link ? (
+                                                <a
+                                                    href={b.link}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="btn btn-sm btn-info"
+                                                >
+                                                    Pay
+                                                </a>
+                                            ) : ""}
+                                        </td>
 
-                                    <td>
-                                        {b.link ? (
-                                            <a href={b.link} target="_blank" rel="noreferrer" className="btn btn-sm btn-info">
-                                                Pay
-                                            </a>
-                                        ) : ""}
-                                    </td>
+                                        <td>
+                                            {b.notes ? (
+                                                <span title={b.notes} style={{ cursor: "help" }}>📝</span>
+                                            ) : ""}
+                                        </td>
 
-                                    <td>
-                                        {b.notes ? (
-                                            <span title={b.notes} style={{ cursor: "help" }}>📝</span>
-                                        ) : ""}
-                                    </td>
+                                        <td>
+                                            <button
+                                                className="btn btn-sm btn-primary"
+                                                style={{ marginRight: "10px" }}
+                                                onClick={() => setEditingBillId(b.id)}
+                                            >
+                                                Edit
+                                            </button>
 
-                                    <td>
-                                        <button
-                                            className="btn btn-sm btn-primary"
+                                                <button
+                                                    className="btn btn-sm btn-danger"
+                                                    onClick={() => handleDelete(b.id)}
+                                                >
+                                                    Delete
+                                                </button>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                )}
+
+                {/* CARD VIEW */}
+                {viewMode === "cards" && (
+                    <div>
+                        {bills.map(b => {
+                            const isDebt = b.type === "debt";
+                            const payoff = isDebt
+                                ? payoffEstimate(b.remaining, b.apr, b.amount)
+                                : null;
+
+                            return (
+                                <div
+                                    key={b.id}
+                                    className="card"
+                                    style={{ marginBottom: "15px", padding: "15px" }}
+                                >
+                                    <h4>{b.name}</h4>
+                                    <p><strong>Amount:</strong> {money(b.amount)}</p>
+
+                                    <p>
+                                        <strong>Hold:</strong>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            value={b.hold_amount ?? ""}
+                                            onChange={(e) => updateBillHold(b.id, e.target.value)}
+                                            style={{ width: "100px", marginLeft: "10px" }}
+                                        />
+                                    </p>
+
+                                    <p><strong>Due Day:</strong> {b.due_day}</p>
+                                    <p><strong>Next Due:</strong> {nextDueDate(b.due_day)}</p>
+                                    <p><strong>Days Left:</strong> {daysUntilDue(b.due_day)}</p>
+                                    <p><strong>Monthly:</strong> {money(monthlyEquivalent(b.amount, b.frequency))}</p>
+
+                                    {isDebt && (
+                                        <>
+                                            <p><strong>APR:</strong> {b.apr}%</p>
+                                            <p><strong>Remaining:</strong> {money(b.remaining)}</p>
+                                            <p><strong>Months Left:</strong> {payoff.months}</p>
+                                            <p><strong>Payoff Date:</strong> {payoff.date}</p>
+                                            <p><strong>Total Interest:</strong> {money(payoff.totalInterest)}</p>
+                                        </>
+                                    )}
+
+                                    {b.link && (
+                                        <a
+                                            href={b.link}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="btn btn-info"
                                             style={{ marginRight: "10px" }}
-                                            onClick={() => setEditingBillId(b.id)}
                                         >
-                                            Edit
-                                        </button>
+                                            Pay
+                                        </a>
+                                    )}
 
-                                        <button
-                                            className="btn btn-sm btn-danger"
-                                            onClick={() => handleDelete(b.id)}
-                                        >
-                                            Delete
-                                        </button>
-                                    </td>
-                                </tr>
+                                    <button
+                                        className="btn btn-primary"
+                                        style={{ marginRight: "10px" }}
+                                        onClick={() => setEditingBillId(b.id)}
+                                    >
+                                        Edit
+                                    </button>
+
+                                    <button
+                                        className="btn btn-danger"
+                                        onClick={() => handleDelete(b.id)}
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
                             );
                         })}
-                    </tbody>
-                </table>
+                    </div>
+                )}
             </div>
 
 
@@ -499,7 +715,7 @@ const Dashboard = ({ user, ready }) => {
 
                 <h4>
                     Free to Spend: $
-                    {(totalBillsHold + totalUpcomingHold).toFixed(2)}
+                    {(startingAmount - (totalBillsHold + totalUpcomingHold)).toFixed(2)}
                 </h4>
             </div>
 

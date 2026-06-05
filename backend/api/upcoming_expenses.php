@@ -67,21 +67,19 @@ switch ($method) {
         $user_id = intval($data['user_id']);
         $name = $data['name'];
         $amount = floatval($data['amount']);
-        $hold_amount = isset($data['hold_amount']) ? floatval($data['hold_amount']) : $amount;
         $due_date = !empty($data['due_date']) ? $data['due_date'] : null;
         $notes = isset($data['notes']) ? $data['notes'] : null;
 
         $query = "INSERT INTO upcoming_expenses 
-                    (user_id, name, amount, hold_amount, due_date, notes) 
+                    (user_id, name, amount, due_date, notes) 
                   VALUES 
-                    (:user_id, :name, :amount, :hold_amount, :due_date, :notes)";
+                    (:user_id, :name, :amount, :due_date, :notes)";
 
         $stmt = $pdo->prepare($query);
 
         $stmt->bindParam(":user_id", $user_id);
         $stmt->bindParam(":name", $name);
         $stmt->bindParam(":amount", $amount);
-        $stmt->bindParam(":hold_amount", $hold_amount);
         $stmt->bindParam(":due_date", $due_date);
         $stmt->bindParam(":notes", $notes);
 
@@ -122,14 +120,12 @@ switch ($method) {
 
         $name = $data['name'] ?? null;
         $amount = isset($data['amount']) ? floatval($data['amount']) : null;
-        $hold_amount = isset($data['hold_amount']) ? floatval($data['hold_amount']) : null;
         $due_date = array_key_exists('due_date', $data) && $data['due_date'] !== "" ? $data['due_date'] : null;
         $notes = $data['notes'] ?? null;
 
         $query = "UPDATE upcoming_expenses SET 
                     name = :name,
                     amount = :amount,
-                    hold_amount = :hold_amount,
                     due_date = :due_date,
                     notes = :notes
                   WHERE id = :id AND user_id = :user_id";
@@ -138,7 +134,6 @@ switch ($method) {
 
         $stmt->bindParam(":name", $name);
         $stmt->bindParam(":amount", $amount);
-        $stmt->bindParam(":hold_amount", $hold_amount);
         $stmt->bindParam(":due_date", $due_date);
         $stmt->bindParam(":notes", $notes);
         $stmt->bindParam(":id", $id);

@@ -7,6 +7,7 @@ const Settings = ({ user }) => {
     const [payFrequency, setPayFrequency] = useState("");
     const [nextPayday, setNextPayday] = useState("");
     const [viewMode, setViewMode] = useState("auto");
+    const [startingAmount, setStartingAmount] = useState(0);
 
     const [message, setMessage] = useState("");
 
@@ -22,6 +23,7 @@ const Settings = ({ user }) => {
                     setPayFrequency(data.settings.pay_frequency || "");
                     setNextPayday(data.settings.next_payday || "");
                     setViewMode(data.settings.view_mode || "auto");
+                    setStartingAmount(data.settings.starting_amount || 0);
                 }
                 setLoading(false);
             })
@@ -38,7 +40,8 @@ const Settings = ({ user }) => {
             user_id: user.id,
             pay_frequency: payFrequency,
             next_payday: nextPayday || null,
-            view_mode: viewMode
+            view_mode: viewMode,
+            starting_amount: startingAmount
         };
 
         fetch(`${API}/settings.php`, {
@@ -72,6 +75,19 @@ const Settings = ({ user }) => {
                     {message}
                 </div>
             )}
+
+            {/* Starting Amount */}
+            <div className="form-group" style={{ marginBottom: "20px" }}>
+                <label>Starting Amount (Cash on Hand)</label>
+                <input
+                    type="number"
+                    step="0.01"
+                    value={startingAmount}
+                    onChange={(e) => setStartingAmount(e.target.value)}
+                    className="form-control"
+                />
+            </div>
+
 
             {/* Pay Frequency */}
             <div className="form-group" style={{ marginBottom: "20px" }}>

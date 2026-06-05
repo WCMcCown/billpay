@@ -5,7 +5,6 @@ function EditItemModal({ show, item, onClose, onSave }) {
     name: "",
     due_date: "",
     amount: "",
-    hold_amount: "",
     apr: ""
   });
 
@@ -15,7 +14,6 @@ function EditItemModal({ show, item, onClose, onSave }) {
         name: item.name,
         due_date: item.due_date,
         amount: item.amount,
-        hold_amount: item.hold_amount,
         apr: item.apr
       });
     }
@@ -69,16 +67,6 @@ function EditItemModal({ show, item, onClose, onSave }) {
                   className="form-control"
                   value={form.amount}
                   onChange={(e) => updateField("amount", e.target.value)}
-                />
-              </div>
-
-              <div className="mb-3">
-                <label className="form-label">Hold Amount</label>
-                <input
-                  type="number"
-                  className="form-control"
-                  value={form.hold_amount}
-                  onChange={(e) => updateField("hold_amount", e.target.value)}
                 />
               </div>
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 export default function AddBill({ user, onClose }) {
     const [bill, setBill] = useState({
@@ -29,22 +29,23 @@ export default function AddBill({ user, onClose }) {
             });
     };
 
-    useEffect(() => {
-        const handleKey = (e) => {
-            if (e.key === "Enter") {
-                e.preventDefault();
-                handleSave();
-            }
-        };
-
-        window.addEventListener("keydown", handleKey);
-        return () => window.removeEventListener("keydown", handleKey);
-    }, [bill]);
-
     const isDebt = bill.type === "debt";
 
+    const firstInputRef = useRef(null);
+
+    useEffect(() => {
+        if (firstInputRef.current) {
+            firstInputRef.current.focus();
+        }
+    }, []);
+
     return (
-        <>
+        <form
+            onSubmit={(e) => {
+                e.preventDefault();
+                handleSave();
+            }}
+        >
             <h2 style={{ marginBottom: "12px" }}>Add Bill</h2>
 
             <div className="section">
@@ -52,6 +53,7 @@ export default function AddBill({ user, onClose }) {
 
                 <label className="form-label">Name</label>
                 <input
+                    ref={firstInputRef}
                     className="form-input"
                     value={bill.name}
                     onChange={(e) => setBill({ ...bill, name: e.target.value })}
@@ -207,6 +209,6 @@ export default function AddBill({ user, onClose }) {
                 </button>
                 <button className="btn-primary" onClick={handleSave}>Save</button>
             </div>
-        </>
+        </form>
     );
 }

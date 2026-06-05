@@ -83,15 +83,6 @@ export default function EditUpcomingExpense({ expenseId, user, onClose }) {
                         />
                     </div>
                 </div>
-
-                <label className="form-label">Hold Amount</label>
-                <input
-                    className="form-input"
-                    type="number"
-                    step="0.01"
-                    value={expense.hold_amount}
-                    onChange={(e) => setExpense({ ...expense, hold_amount: e.target.value })}
-                />
             </div>
 
             <div className="section">
