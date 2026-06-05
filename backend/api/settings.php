@@ -95,6 +95,32 @@ switch ($method) {
         echo json_encode(["success" => true, "message" => "Settings saved"]);
         break;
 
+        case "PUT":
+        $data = json_decode(file_get_contents("php://input"), true);
+
+        if (!$data || !isset($data['user_id'])) {
+            echo json_encode(["success" => false, "message" => "Missing user_id"]);
+            exit();
+        }
+
+        $user_id = intval($data['user_id']);
+        $starting_amount = isset($data['starting_amount']) ? floatval($data['starting_amount']) : 0;
+
+        // Update ONLY starting_amount
+        $stmt = $pdo->prepare("
+            UPDATE settings SET
+                starting_amount = :starting_amount,
+                updated_at = NOW()
+            WHERE user_id = :user_id
+        ");
+
+        $stmt->bindParam(":starting_amount", $starting_amount);
+        $stmt->bindParam(":user_id", $user_id);
+        $stmt->execute();
+
+        echo json_encode(["success" => true, "message" => "Starting amount updated"]);
+        break;
+
 
     default:
         echo json_encode(["success" => false, "message" => "Invalid request method"]);
