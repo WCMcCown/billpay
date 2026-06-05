@@ -16,7 +16,7 @@ const NavBar = ({ user, setUser }) => {
 
                 {/* App Name */}
                 <Link className="navbar-brand" to="/">
-                    Bill Tracker
+                    BillPilot
                 </Link>
 
                 <button

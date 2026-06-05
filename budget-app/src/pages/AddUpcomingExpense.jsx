@@ -1,127 +1,95 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
 
-const AddUpcomingExpense = ({ user }) => {
-    const navigate = useNavigate();
+export default function AddUpcomingExpense({ user, onClose }) {
+    const [expense, setExpense] = useState({
+        name: "",
+        amount: "",
+        due_date: "",
+        notes: ""
+    });
 
-    const [name, setName] = useState("");
-    const [amount, setAmount] = useState("");
-    const [dueDate, setDueDate] = useState("");
-    const [notes, setNotes] = useState("");
+    const API = "http://127.0.0.1/bill/backend/api";
 
-    const [saving, setSaving] = useState(false);
-    const [message, setMessage] = useState("");
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        if (!user?.id) return;
-
-        if (!name || !amount) {
-            setMessage("Name and amount are required.");
-            return;
-        }
-
-        setSaving(true);
-        setMessage("");
-
-        const payload = {
-            user_id: user.id,
-            name,
-            amount: parseFloat(amount),
-            hold_amount: parseFloat(amount), // default behavior
-            due_date: dueDate || null,
-            notes: notes || null
+    useEffect(() => {
+        const handleKey = (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                handleSave();
+            }
         };
 
-        fetch("http://127.0.0.1/api/upcoming_expenses.php", {
+        window.addEventListener("keydown", handleKey);
+        return () => window.removeEventListener("keydown", handleKey);
+    }, [expense]);
+
+
+    const handleSave = () => {
+        fetch(`${API}/upcoming_expenses.php`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
+            body: JSON.stringify({ ...expense, user_id: user.id })
         })
             .then(res => res.json())
             .then(data => {
-                if (data.success) {
-                    navigate("/dashboard");
-                } else {
-                    setMessage("Error saving upcoming expense.");
-                }
-                setSaving(false);
-            })
-            .catch(() => {
-                setMessage("Error saving upcoming expense.");
-                setSaving(false);
+                onClose(data.expense || null);   // ⭐ send new expense back to Dashboard
             });
     };
 
     return (
-        <div style={{ maxWidth: "600px", margin: "0 auto" }}>
-            <h2>Add Upcoming Expense</h2>
+        <>
+            <h2 style={{ marginBottom: "12px" }}>Add Upcoming Expense</h2>
 
-            {message && (
-                <div style={{ marginBottom: "10px", color: "red" }}>
-                    {message}
-                </div>
-            )}
+            <div className="section">
+                <h4>General Info</h4>
 
-            <form onSubmit={handleSubmit}>
+                <label className="form-label">Name</label>
+                <input
+                    className="form-input"
+                    value={expense.name}
+                    onChange={(e) => setExpense({ ...expense, name: e.target.value })}
+                />
 
-                {/* Name */}
-                <div className="form-group" style={{ marginBottom: "20px" }}>
-                    <label>Name</label>
-                    <input
-                        type="text"
-                        className="form-control"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        required
-                    />
-                </div>
+                <div className="form-grid">
+                    <div>
+                        <label className="form-label">Amount</label>
+                        <input
+                            className="form-input"
+                            type="number"
+                            step="0.01"
+                            value={expense.amount}
+                            onChange={(e) => setExpense({ ...expense, amount: e.target.value })}
+                        />
+                    </div>
 
-                {/* Amount */}
-                <div className="form-group" style={{ marginBottom: "20px" }}>
-                    <label>Amount</label>
-                    <input
-                        type="number"
-                        step="0.01"
-                        className="form-control"
-                        value={amount}
-                        onChange={(e) => setAmount(e.target.value)}
-                        required
-                    />
-                </div>
-
-                {/* Due Date (optional) */}
-                <div className="form-group" style={{ marginBottom: "20px" }}>
-                    <label>Due Date (optional)</label>
-                    <input
-                        type="date"
-                        className="form-control"
-                        value={dueDate || ""}
-                        onChange={(e) => setDueDate(e.target.value)}
-                    />
+                    <div>
+                        <label className="form-label">Due Date</label>
+                        <input
+                            className="form-input"
+                            type="date"
+                            value={expense.due_date}
+                            onChange={(e) => setExpense({ ...expense, due_date: e.target.value })}
+                        />
+                    </div>
                 </div>
 
-                {/* Notes */}
-                <div className="form-group" style={{ marginBottom: "20px" }}>
-                    <label>Notes (optional)</label>
-                    <textarea
-                        className="form-control"
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        rows="3"
-                    />
-                </div>
+            </div>
 
-                <button
-                    type="submit"
-                    className="btn btn-primary"
-                    disabled={saving}
-                >
-                    {saving ? "Saving…" : "Add Expense"}
+            <div className="section">
+                <h4>Notes</h4>
+                <textarea
+                    className="form-input"
+                    rows="3"
+                    value={expense.notes}
+                    onChange={(e) => setExpense({ ...expense, notes: e.target.value })}
+                />
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+                <button type="button" className="btn-secondary" onClick={() => onClose(null)}>
+                    Cancel
                 </button>
-            </form>
-        </div>
+                <button className="btn-primary" onClick={handleSave}>Save</button>
+            </div>
+        </>
     );
-};
-
-export default AddUpcomingExpense;
+}

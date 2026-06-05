@@ -13,7 +13,7 @@ try {
 
     $stmt = $pdo->prepare("
         UPDATE items 
-        SET name = ?, due_date = ?, amount = ?, hold_amount = ?, apr = ?
+        SET name = ?, due_date = ?, amount = ?, apr = ?
         WHERE id = ?
     ");
 
@@ -21,7 +21,6 @@ try {
         $data["name"],
         $data["due_date"],
         $data["amount"],
-        $data["hold_amount"],
         $data["apr"],
         $data["id"]
     ]);
