@@ -43,7 +43,12 @@ switch ($method) {
                 "pay_frequency" => null,
                 "next_payday" => null,
                 "view_mode" => "auto",
-                "starting_amount" => 0
+                "starting_amount" => 0,
+                 "responsive_mode" => 1,
+                "layout_phone" => "cards",
+                "layout_tablet" => "compact",
+                "layout_desktop" => "full",
+                "layout_global" => "full"
             ];
         }
 

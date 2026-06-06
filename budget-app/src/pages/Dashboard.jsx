@@ -454,7 +454,7 @@ const Dashboard = ({ user, ready }) => {
     if (loading) return <div>Loading dashboard…</div>;
 
     return (
-        <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+        <div style={{ maxWidth: "1450px", margin: "0 auto" }}>
             <h2>Dashboard</h2>
 
             <div style={{ marginBottom: "25px" }}>
