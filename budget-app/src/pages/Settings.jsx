@@ -6,8 +6,12 @@ const Settings = ({ user }) => {
 
     const [payFrequency, setPayFrequency] = useState("");
     const [nextPayday, setNextPayday] = useState("");
-    const [viewMode, setViewMode] = useState("auto");
     const [startingAmount, setStartingAmount] = useState(0);
+    const [responsiveMode, setResponsiveMode] = useState(1);
+    const [layoutPhone, setLayoutPhone] = useState("cards");
+    const [layoutTablet, setLayoutTablet] = useState("compact");
+    const [layoutDesktop, setLayoutDesktop] = useState("full");
+    const [layoutGlobal, setLayoutGlobal] = useState("full");
 
     const [message, setMessage] = useState("");
 
@@ -20,10 +24,18 @@ const Settings = ({ user }) => {
             .then(res => res.json())
             .then(data => {
                 if (data.success && data.settings) {
-                    setPayFrequency(data.settings.pay_frequency || "");
-                    setNextPayday(data.settings.next_payday || "");
-                    setViewMode(data.settings.view_mode || "auto");
-                    setStartingAmount(data.settings.starting_amount || 0);
+                    const s = data.settings;
+
+                    setPayFrequency(s.pay_frequency || "");
+                    setNextPayday(s.next_payday || "");
+                    setStartingAmount(s.starting_amount || 0);
+
+                    // NEW LAYOUT SETTINGS (fallbacks for older DB rows)
+                    setResponsiveMode(s.responsive_mode ?? 1);
+                    setLayoutPhone(s.layout_phone || "cards");
+                    setLayoutTablet(s.layout_tablet || "compact");
+                    setLayoutDesktop(s.layout_desktop || "full");
+                    setLayoutGlobal(s.layout_global || "full");
                 }
                 setLoading(false);
             })
@@ -40,8 +52,12 @@ const Settings = ({ user }) => {
             user_id: user.id,
             pay_frequency: payFrequency,
             next_payday: nextPayday || null,
-            view_mode: viewMode,
-            starting_amount: startingAmount
+            starting_amount: startingAmount,
+            responsive_mode: responsiveMode,
+            layout_phone: layoutPhone,
+            layout_tablet: layoutTablet,
+            layout_desktop: layoutDesktop,
+            layout_global: layoutGlobal
         };
 
         fetch(`${API}/settings.php`, {
@@ -88,7 +104,6 @@ const Settings = ({ user }) => {
                 />
             </div>
 
-
             {/* Pay Frequency */}
             <div className="form-group" style={{ marginBottom: "20px" }}>
                 <label>Pay Frequency</label>
@@ -116,19 +131,79 @@ const Settings = ({ user }) => {
                 />
             </div>
 
-            {/* View Mode */}
+            {/* Responsive Mode */}
             <div className="form-group" style={{ marginBottom: "20px" }}>
-                <label>Default View Mode</label>
+                <label>Responsive Layout Mode</label>
                 <select
-                    value={viewMode}
-                    onChange={(e) => setViewMode(e.target.value)}
+                    value={responsiveMode}
+                    onChange={(e) => setResponsiveMode(parseInt(e.target.value))}
                     className="form-control"
                 >
-                    <option value="auto">Auto (Responsive)</option>
-                    <option value="table">Table View</option>
-                    <option value="cards">Card View</option>
+                    <option value={1}>Responsive (Phone / Tablet / Desktop)</option>
+                    <option value={0}>Fixed Layout (Use one layout everywhere)</option>
                 </select>
             </div>
+
+            {/* Layout Options */}
+            {responsiveMode === 1 ? (
+                <>
+                    <div className="form-group" style={{ marginBottom: "20px" }}>
+                        <label>Phone Layout</label>
+                        <select
+                            value={layoutPhone}
+                            onChange={(e) => setLayoutPhone(e.target.value)}
+                            className="form-control"
+                        >
+                            <option value="cards">Cards</option>
+                            <option value="compact">Compact Table</option>
+                            <option value="standard">Standard Table</option>
+                            <option value="full">Full Table</option>
+                        </select>
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: "20px" }}>
+                        <label>Tablet Layout</label>
+                        <select
+                            value={layoutTablet}
+                            onChange={(e) => setLayoutTablet(e.target.value)}
+                            className="form-control"
+                        >
+                            <option value="cards">Cards</option>
+                            <option value="compact">Compact Table</option>
+                            <option value="standard">Standard Table</option>
+                            <option value="full">Full Table</option>
+                        </select>
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: "20px" }}>
+                        <label>Desktop Layout</label>
+                        <select
+                            value={layoutDesktop}
+                            onChange={(e) => setLayoutDesktop(e.target.value)}
+                            className="form-control"
+                        >
+                            <option value="cards">Cards</option>
+                            <option value="compact">Compact Table</option>
+                            <option value="standard">Standard Table</option>
+                            <option value="full">Full Table</option>
+                        </select>
+                    </div>
+                </>
+            ) : (
+                <div className="form-group" style={{ marginBottom: "20px" }}>
+                    <label>Layout for All Devices</label>
+                    <select
+                        value={layoutGlobal}
+                        onChange={(e) => setLayoutGlobal(e.target.value)}
+                        className="form-control"
+                    >
+                        <option value="cards">Cards</option>
+                        <option value="compact">Compact Table</option>
+                        <option value="standard">Standard Table</option>
+                        <option value="full">Full Table</option>
+                    </select>
+                </div>
+            )}
 
             <button
                 onClick={saveSettings}
