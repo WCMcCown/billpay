@@ -27,6 +27,12 @@
    GLOBAL FORM ELEMENTS (COMPACT)
 ------------------------------ */
 
+.action-buttons {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
 .section {
     margin-bottom: 18px;
 }
@@ -121,6 +127,8 @@ select.form-input {
     position: fixed;
     inset: 0;
     background: rgba(0,0,0,0.45);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
     display: flex;
     justify-content: center;
     align-items: center;

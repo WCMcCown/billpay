@@ -757,23 +757,24 @@ const Dashboard = ({ user, ready }) => {
                                                 <span title={b.notes} style={{ cursor: "help" }}>📝</span>
                                             ) : ""}
                                         </td>
+                                            <td>
+                                                <div className="action-buttons">
+                                                    <button
+                                                        className="btn btn-sm btn-primary"
+                                                        style={{ marginRight: "10px" }}
+                                                        onClick={() => setEditingBillId(b.id)}
+                                                    >
+                                                        Edit
+                                                    </button>
 
-                                        <td>
-                                            <button
-                                                className="btn btn-sm btn-primary"
-                                                style={{ marginRight: "10px" }}
-                                                onClick={() => setEditingBillId(b.id)}
-                                            >
-                                                Edit
-                                            </button>
-
-                                                <button
-                                                    className="btn btn-sm btn-danger"
-                                                    onClick={() => handleDelete(b.id)}
-                                                >
-                                                    Delete
-                                                </button>
-                                        </td>
+                                                    <button
+                                                        className="btn btn-sm btn-danger"
+                                                        onClick={() => handleDelete(b.id)}
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                </div>
+                                            </td>
                                     </tr>
                                 );
                             })}
