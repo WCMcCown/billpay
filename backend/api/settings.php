@@ -42,8 +42,12 @@ switch ($method) {
                 "user_id" => $user_id,
                 "pay_frequency" => null,
                 "next_payday" => null,
-                "view_mode" => "auto",
-                "starting_amount" => 0
+                "starting_amount" => 0,
+                "responsive_mode" => 1,
+                "layout_phone" => "cards",
+                "layout_tablet" => "compact",
+                "layout_desktop" => "full",
+                "layout_global" => "full"
             ];
         }
 
@@ -62,8 +66,12 @@ switch ($method) {
         $user_id = intval($data['user_id']);
         $pay_frequency = $data['pay_frequency'] ?? null;
         $next_payday = !empty($data['next_payday']) ? $data['next_payday'] : null;
-        $view_mode = $data['view_mode'] ?? "auto";
         $starting_amount = isset($data['starting_amount']) ? floatval($data['starting_amount']) : 0;
+        $responsive_mode = isset($data['responsive_mode']) ? intval($data['responsive_mode']) : 1;
+        $layout_phone = $data['layout_phone'] ?? "cards";
+        $layout_tablet = $data['layout_tablet'] ?? "compact";
+        $layout_desktop = $data['layout_desktop'] ?? "full";
+        $layout_global = $data['layout_global'] ?? "full";
 
         $check = $pdo->prepare("SELECT id FROM settings WHERE user_id = :user_id LIMIT 1");
         $check->bindParam(":user_id", $user_id);
@@ -73,23 +81,33 @@ switch ($method) {
             $query = "UPDATE settings SET 
                         pay_frequency = :pay_frequency,
                         next_payday = :next_payday,
-                        view_mode = :view_mode,
                         starting_amount = :starting_amount,
+                        responsive_mode = :responsive_mode,
+                        layout_phone = :layout_phone,
+                        layout_tablet = :layout_tablet,
+                        layout_desktop = :layout_desktop,
+                        layout_global = :layout_global,
                         updated_at = NOW()
                       WHERE user_id = :user_id";
         } else {
             $query = "INSERT INTO settings 
-                        (user_id, pay_frequency, next_payday, view_mode, starting_amount) 
+                (user_id, pay_frequency, next_payday, starting_amount,
+                responsive_mode, layout_phone, layout_tablet, layout_desktop, layout_global)
                       VALUES 
-                        (:user_id, :pay_frequency, :next_payday, :view_mode, :starting_amount)";
+                        (:user_id, :pay_frequency, :next_payday, :starting_amount,
+                         :responsive_mode, :layout_phone, :layout_tablet, :layout_desktop, :layout_global)";
         }
 
         $stmt = $pdo->prepare($query);
         $stmt->bindParam(":user_id", $user_id);
         $stmt->bindParam(":pay_frequency", $pay_frequency);
         $stmt->bindParam(":next_payday", $next_payday);
-        $stmt->bindParam(":view_mode", $view_mode);
         $stmt->bindParam(":starting_amount", $starting_amount);
+        $stmt->bindParam(":responsive_mode", $responsive_mode);
+        $stmt->bindParam(":layout_phone", $layout_phone);
+        $stmt->bindParam(":layout_tablet", $layout_tablet);
+        $stmt->bindParam(":layout_desktop", $layout_desktop);
+        $stmt->bindParam(":layout_global", $layout_global);
         $stmt->execute();
 
         echo json_encode(["success" => true, "message" => "Settings saved"]);
