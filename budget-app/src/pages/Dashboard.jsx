@@ -12,6 +12,9 @@ import BillsTableFull from "../components/layouts/BillsTableFull";
 import BillsTableStandard from "../components/layouts/BillsTableStandard";
 import BillsTableCompact from "../components/layouts/BillsTableCompact";
 import TableView from "../components/layouts/TableView";
+import DebtSummary from "../components/debt/DebtSummary";
+import DebtProjections from "../components/debt/DebtProjections";
+
 
 import columnConfig from "../utils/columnConfig";
 import { sortData } from "../utils/sorting";
@@ -410,9 +413,8 @@ const Dashboard = ({ user, ready }) => {
 
       {/* DEBT SUMMARY */}
       <div style={{ marginBottom: "40px", marginTop: "20px" }}>
-        <h3>Debt Summary</h3>
-
-        {/* You can add your debt summary calculations here if needed */}
+        <DebtSummary bills={bills} />
+        <DebtProjections bills={bills} />
       </div>
 
       {/* MODALS */}

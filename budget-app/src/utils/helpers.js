@@ -8,18 +8,13 @@
  * - Debt payoff calculations
  * - Interest calculations
  * - Hold amount calculations
- *
- * These functions are pure and reusable across:
- * - Dashboard
- * - Table layouts
- * - Card layouts
- * - Future analytics pages
+ * - Avalanche & Snowball simulations
+ * - Months → date conversion
  */
 
 // -----------------------------
 // Money + formatting
 // -----------------------------
-
 export function money(n) {
   return `$${parseFloat(n || 0).toFixed(2)}`;
 }
@@ -32,7 +27,6 @@ export function formatDate(dateStr) {
 // -----------------------------
 // Due‑date math
 // -----------------------------
-
 export function daysUntilDue(dueDay) {
   const today = new Date();
   const currentDay = today.getDate();
@@ -55,7 +49,6 @@ export function nextDueDate(dueDay) {
 // -----------------------------
 // Monthly equivalents
 // -----------------------------
-
 export function monthlyEquivalent(amount, frequency) {
   return (parseFloat(amount || 0) * parseFloat(frequency || 1)).toFixed(2);
 }
@@ -63,7 +56,6 @@ export function monthlyEquivalent(amount, frequency) {
 // -----------------------------
 // Interest calculations
 // -----------------------------
-
 export function interestPerPeriod(apr, remaining) {
   const rate = parseFloat(apr || 0) / 100 / 12;
   return (parseFloat(remaining || 0) * rate).toFixed(2);
@@ -77,7 +69,6 @@ export function interestPerYear(apr, remaining) {
 // -----------------------------
 // Debt payoff estimate
 // -----------------------------
-
 export function payoffEstimate(remaining, apr, monthlyPayment) {
   remaining = parseFloat(remaining || 0);
   apr = parseFloat(apr || 0);
@@ -125,7 +116,6 @@ export function payoffEstimate(remaining, apr, monthlyPayment) {
 // -----------------------------
 // Convert months → date
 // -----------------------------
-
 export function monthsToDate(months) {
   const d = new Date();
   d.setMonth(d.getMonth() + months);
@@ -135,7 +125,6 @@ export function monthsToDate(months) {
 // -----------------------------
 // Hold amount calculation
 // -----------------------------
-
 export function calculateHoldForBill(bill, settings) {
   const amount = parseFloat(bill.amount || 0);
   const frequencyMonths = parseFloat(bill.frequency || 1); // e.g. 1 = monthly, 3 = quarterly
@@ -179,4 +168,86 @@ export function calculateHoldForBill(bill, settings) {
 
   const holdAmount = amountPerPaycheck * paychecksPassed;
   return parseFloat(holdAmount.toFixed(2));
+}
+
+// -----------------------------
+// Avalanche Method Simulation
+// -----------------------------
+export function simulateAvalanche(debtsInput) {
+  let debts = debtsInput
+    .filter((d) => d.type === "debt" && d.remaining > 0)
+    .map((d) => ({
+      name: d.name,
+      balance: parseFloat(d.remaining || 0),
+      apr: parseFloat(d.apr || 0),
+      payment: parseFloat(d.amount || 0),
+    }))
+    .sort((a, b) => b.apr - a.apr); // highest APR first
+
+  let months = 0;
+
+  while (debts.some((d) => d.balance > 0)) {
+    months++;
+
+    for (let i = 0; i < debts.length; i++) {
+      let d = debts[i];
+      if (d.balance <= 0) continue;
+
+      const interest = d.balance * (d.apr / 100 / 12);
+      d.balance = d.balance + interest - d.payment;
+
+      if (d.balance <= 0) {
+        d.balance = 0;
+
+        if (i + 1 < debts.length) {
+          debts[i + 1].payment += d.payment;
+        }
+      }
+    }
+
+    if (months > 2000) break; // safety
+  }
+
+  return months;
+}
+
+// -----------------------------
+// Snowball Method Simulation
+// -----------------------------
+export function simulateSnowball(debtsInput) {
+  let debts = debtsInput
+    .filter((d) => d.type === "debt" && d.remaining > 0)
+    .map((d) => ({
+      name: d.name,
+      balance: parseFloat(d.remaining || 0),
+      apr: parseFloat(d.apr || 0),
+      payment: parseFloat(d.amount || 0),
+    }))
+    .sort((a, b) => a.balance - b.balance); // smallest balance first
+
+  let months = 0;
+
+  while (debts.some((d) => d.balance > 0)) {
+    months++;
+
+    for (let i = 0; i < debts.length; i++) {
+      let d = debts[i];
+      if (d.balance <= 0) continue;
+
+      const interest = d.balance * (d.apr / 100 / 12);
+      d.balance = d.balance + interest - d.payment;
+
+      if (d.balance <= 0) {
+        d.balance = 0;
+
+        if (i + 1 < debts.length) {
+          debts[i + 1].payment += d.payment;
+        }
+      }
+    }
+
+    if (months > 2000) break; // safety
+  }
+
+  return months;
 }
