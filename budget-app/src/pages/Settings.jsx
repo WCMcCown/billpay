@@ -12,7 +12,7 @@ const Settings = ({ user }) => {
     const [layoutTablet, setLayoutTablet] = useState("compact");
     const [layoutDesktop, setLayoutDesktop] = useState("full");
     const [layoutGlobal, setLayoutGlobal] = useState("full");
-
+    const [reserveAmount, setReserveAmount] = useState(0);
     const [message, setMessage] = useState("");
 
     const API = "http://127.0.0.1/bill/backend/api";
@@ -29,6 +29,7 @@ const Settings = ({ user }) => {
                     setPayFrequency(s.pay_frequency || "");
                     setNextPayday(s.next_payday || "");
                     setStartingAmount(s.starting_amount || 0);
+                    setReserveAmount(s.reserve_amount || 0);
 
                     // NEW LAYOUT SETTINGS (fallbacks for older DB rows)
                     setResponsiveMode(s.responsive_mode ?? 1);
@@ -53,6 +54,7 @@ const Settings = ({ user }) => {
             pay_frequency: payFrequency,
             next_payday: nextPayday || null,
             starting_amount: startingAmount,
+            reserve_amount: reserveAmount,
             responsive_mode: responsiveMode,
             layout_phone: layoutPhone,
             layout_tablet: layoutTablet,
@@ -100,6 +102,17 @@ const Settings = ({ user }) => {
                     step="0.01"
                     value={startingAmount}
                     onChange={(e) => setStartingAmount(e.target.value)}
+                    className="form-control"
+                />
+            </div>
+
+            <div className="form-group" style={{ marginBottom: "20px" }}>
+                <label>Reserve Amount (Cash Buffer)</label>
+                <input
+                    type="number"
+                    step="0.01"
+                    value={reserveAmount}
+                    onChange={(e) => setReserveAmount(e.target.value)}
                     className="form-control"
                 />
             </div>

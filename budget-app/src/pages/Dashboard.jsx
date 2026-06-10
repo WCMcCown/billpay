@@ -32,6 +32,7 @@ const Dashboard = ({ user, ready }) => {
   const [bills, setBills] = useState([]);
   const [upcoming, setUpcoming] = useState([]);
   const [startingAmount, setStartingAmount] = useState(0);
+  const [reserveAmount, setReserveAmount] = useState(0);
 
   // Layout mode after applying settings + responsive logic
   const [effectiveLayout, setEffectiveLayout] = useState("full");
@@ -67,6 +68,7 @@ const Dashboard = ({ user, ready }) => {
           setStartingAmount(
             parseFloat(settingsRes.settings.starting_amount || 0)
           );
+          setReserveAmount(parseFloat(settingsRes.settings.reserve_amount || 0));
         }
 
         if (billsRes.success) {
@@ -190,6 +192,50 @@ const Dashboard = ({ user, ready }) => {
   const totalHoldPerCheck = totalBillsHold + totalUpcomingHold;
 
   // -----------------------------
+    // Settings updates
+    // -----------------------------
+    const saveStartingAmount = (value) => {
+    fetch(`${API}/settings.php`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+        user_id: user.id,
+        starting_amount: value,
+        }),
+    })
+        .then((res) => res.json())
+        .then((data) => {
+        if (data.success) {
+            setSettings((prev) => ({
+            ...prev,
+            starting_amount: value,
+            }));
+        }
+        });
+    };
+
+    const saveReserveAmount = (value) => {
+    fetch(`${API}/settings.php`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+        user_id: user.id,
+        reserve_amount: value,
+        }),
+    })
+        .then((res) => res.json())
+        .then((data) => {
+        if (data.success) {
+            setSettings((prev) => ({
+            ...prev,
+            reserve_amount: value,
+            }));
+        }
+        });
+    };
+
+
+  // -----------------------------
   // Delete handlers
   // -----------------------------
   const deleteUpcoming = (id) => {
@@ -293,20 +339,26 @@ const Dashboard = ({ user, ready }) => {
           step="0.01"
           value={startingAmount}
           onChange={(e) => setStartingAmount(parseFloat(e.target.value || 0))}
-          onBlur={() => {
-            fetch(`${API}/settings.php`, {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                user_id: user.id,
-                starting_amount: startingAmount,
-              }),
-            });
-          }}
+          onBlur={() => saveStartingAmount(startingAmount)}
           className="form-control"
           style={{ width: "200px" }}
         />
       </div>
+
+      {/* RESERVE AMOUNT */}
+      <div style={{ marginBottom: "25px" }}>
+        <label><strong>Reserve Amount (Cash Buffer):</strong></label>
+        <input
+            type="number"
+            step="0.01"
+            value={reserveAmount}
+            onChange={(e) => setReserveAmount(parseFloat(e.target.value || 0))}
+            onBlur={() => saveReserveAmount(reserveAmount)}
+            className="form-control"
+            style={{ width: "200px" }}
+        />
+        </div>
+
 
       {/* UPCOMING EXPENSES */}
       <div style={{ marginBottom: "40px" }}>
@@ -406,7 +458,7 @@ const Dashboard = ({ user, ready }) => {
         <h4>
           Free to Spend:{" "}
           {helpers.money(
-            startingAmount - (totalBillsHold + totalUpcomingHold)
+            startingAmount - reserveAmount - (totalBillsHold + totalUpcomingHold)
           )}
         </h4>
       </div>
