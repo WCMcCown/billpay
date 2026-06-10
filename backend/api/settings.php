@@ -37,9 +37,14 @@ switch ($method) {
 
         $settings = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if (!$settings) {
+        if ($settings) {
+            // Ensure column_order always exists
+            $settings["column_order"] = $settings["column_order"] ?? null;
+        } else {
+            // Default settings for new users
             $settings = [
                 "user_id" => $user_id,
+                "column_order" => null,
                 "pay_frequency" => null,
                 "next_payday" => null,
                 "starting_amount" => 0,
@@ -54,6 +59,7 @@ switch ($method) {
 
         echo json_encode(["success" => true, "settings" => $settings]);
         break;
+
 
 
     case "POST":

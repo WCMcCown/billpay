@@ -11,12 +11,19 @@ try {
 
     $data = json_decode(file_get_contents("php://input"), true);
 
-    if (!isset($data["id"]) || !isset($data["hold_amount"])) {
-        throw new Exception("Missing required fields");
-    }
+    $stmt = $pdo->prepare("
+        UPDATE items 
+        SET name = ?, due_date = ?, amount = ?, apr = ?
+        WHERE id = ?
+    ");
 
-    $stmt = $pdo->prepare("UPDATE items SET hold_amount = ? WHERE id = ?");
-    $stmt->execute([$data["hold_amount"], $data["id"]]);
+    $stmt->execute([
+        $data["name"],
+        $data["due_date"],
+        $data["amount"],
+        $data["apr"],
+        $data["id"]
+    ]);
 
     echo json_encode(["success" => true]);
 } catch (Exception $e) {
