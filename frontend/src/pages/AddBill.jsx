@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { apiFetch } from "../api/http";
 
 export default function AddBill({ user, onClose }) {
     const [bill, setBill] = useState({
@@ -15,18 +16,18 @@ export default function AddBill({ user, onClose }) {
         notes: ""
     });
 
-    const API = "http://127.0.0.1/bill/backend/api";
-
-    const handleSave = () => {
-        fetch(`${API}/bills.php`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ...bill, user_id: user.id })
-        })
-            .then(res => res.json())
-            .then(data => {
-                onClose(data.bill || null);
+    const handleSave = async () => {
+        try {
+            const data = await apiFetch("bills.php", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ...bill, user_id: user.id })
             });
+
+            onClose(data.bill || null);
+        } catch (err) {
+            console.error("Failed to save bill:", err);
+        }
     };
 
     const isDebt = bill.type === "debt";

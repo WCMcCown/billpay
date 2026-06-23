@@ -1,24 +1,32 @@
+// login.jsx
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { apiFetch } from "../api/http";   // ⭐ NEW — centralized API wrapper
 
 function Login() {
   const navigate = useNavigate();
+
+  // -----------------------------
+  // State
+  // -----------------------------
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
+  // -----------------------------
+  // Handle login
+  // -----------------------------
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
 
     try {
-      const res = await fetch("http://127.0.0.1/bill/backend/api/login.php", {
+      // ⭐ Correct endpoint: login.php
+      const data = await apiFetch("login.php", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-
-      const data = await res.json();
 
       if (data.success) {
         localStorage.setItem("loggedIn", "true");
@@ -28,10 +36,14 @@ function Login() {
         setError(data.message || "Invalid login");
       }
     } catch (err) {
+      console.error("Login error:", err);
       setError("Server error");
     }
   };
 
+  // -----------------------------
+  // Render
+  // -----------------------------
   return (
     <div className="d-flex flex-column justify-content-center align-items-center vh-100 bg-light px-4">
       <h2 className="fw-bold mb-4">BillPilot</h2>
@@ -68,6 +80,7 @@ function Login() {
         </div>
 
         <button className="btn btn-primary w-100 mt-2">Log In</button>
+
         <div className="text-center mt-3">
           <Link to="/register">Create an account</Link>
         </div>

@@ -4,7 +4,7 @@ header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept");
 header("Content-Type: application/json");
 
-
+require_once __DIR__ . "/../includes/cors.php";
 require_once "../config/database.php";
 
 $method = $_SERVER['REQUEST_METHOD'];

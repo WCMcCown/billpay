@@ -1,7 +1,7 @@
 <?php
 return [
-    'host' => 'localhost',
-    'db'   => 'billpay',
-    'user' => 'root',
-    'pass' => ''
+    'host' => 'mysql',
+    'db'   => 'billpilot',
+    'user' => 'billpilot',
+    'pass' => 'userpass123'
 ];

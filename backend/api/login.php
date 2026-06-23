@@ -13,7 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-
+require_once __DIR__ . "/../includes/cors.php";
 require_once "../config/database.php";
 
 $db = new Database();
