@@ -11,3 +11,6 @@ vendor/
 
 # Sensitive config
 config/private.php
+
+# Docker
+docker-compose.yml
