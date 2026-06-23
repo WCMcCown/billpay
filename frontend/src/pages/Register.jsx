@@ -1,33 +1,34 @@
+// register.jsx
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { apiFetch } from "../api/http";   // ⭐ Centralized API wrapper
 
 function Register() {
   const navigate = useNavigate();
+
+  // -----------------------------
+  // State
+  // -----------------------------
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  // -----------------------------
+  // Handle registration
+  // -----------------------------
   const handleRegister = async (e) => {
     e.preventDefault();
     setError("");
     setSuccess("");
 
     try {
-      const res = await fetch("http://127.0.0.1/bill/backend/api/register.php", {
+      const data = await apiFetch("register.php", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password, name }),
       });
-
-      // Debug logging
-      console.log("Response status:", res.status);
-
-      const text = await res.text();
-      console.log("Raw text:", text);
-
-      const data = JSON.parse(text);
 
       if (data.success) {
         setSuccess("Account created successfully");
@@ -36,12 +37,14 @@ function Register() {
         setError(data.message || "Registration failed");
       }
     } catch (err) {
+      console.error("Registration error:", err);
       setError("Unable to reach server");
-      console.error(err);
     }
   };
 
-
+  // -----------------------------
+  // Render
+  // -----------------------------
   return (
     <div className="d-flex flex-column justify-content-center align-items-center vh-100 bg-light px-4">
       <h2 className="fw-bold mb-4">Create Account</h2>
@@ -63,7 +66,7 @@ function Register() {
             onChange={(e) => setName(e.target.value)}
           />
         </div>
-        
+
         <div className="mb-3">
           <label className="form-label">Email</label>
           <input

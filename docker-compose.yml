@@ -1,0 +1,79 @@
+version: "3.9"
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: billpilot-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: "rootpass123"
+      MYSQL_DATABASE: "billpilot"
+      MYSQL_USER: "billpilot"
+      MYSQL_PASSWORD: "userpass123"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - billpilot-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 3s
+      retries: 30
+      start_period: 120s
+
+
+  backend:
+    build: ./backend
+    container_name: billpilot-backend
+    restart: unless-stopped
+    volumes:
+      - ./backend/public:/var/www/html
+      - ./backend/api:/var/www/html/api
+      - ./backend/config:/var/www/html/config
+      - ./backend/includes:/var/www/html/includes
+      - ./backend/models:/var/www/html/models
+      - ./backend/controllers:/var/www/html/controllers
+    environment:
+      DB_HOST: mysql
+      DB_NAME: billpilot
+      DB_USER: billpilot
+      DB_PASS: "userpass123"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - billpilot-net
+    ports:
+      - "8083:80"
+
+
+
+
+  frontend-builder:
+    image: node:20
+    container_name: billpilot-frontend-builder
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+    command: ["sh", "-c", "npm install && npm run build"]
+    networks:
+      - billpilot-net
+
+  frontend:
+    image: nginx:latest
+    container_name: billpilot-frontend
+    restart: unless-stopped
+    volumes:
+      - ./frontend/dist:/usr/share/nginx/html
+    ports:
+      - "8081:80"   # frontend exposed to LAN (or Tailscale)
+    depends_on:
+      - frontend-builder
+    networks:
+      - billpilot-net
+
+volumes:
+  mysql_data:
+
+networks:
+  billpilot-net:

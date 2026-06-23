@@ -4,6 +4,7 @@ import EditBill from "./EditBill";
 import AddBill from "./AddBill";
 import AddUpcomingExpense from "./AddUpcomingExpense";
 import EditUpcomingExpense from "./EditUpcomingExpense";
+
 import Modal from "../components/Modal";
 
 import BillsTableFull from "../components/layouts/BillsTableFull";
@@ -17,7 +18,7 @@ import columnConfig, { defaultOrder } from "../utils/columnConfig";
 import { sortData } from "../utils/sorting";
 import * as helpers from "../utils/helpers";
 
-const API = "http://127.0.0.1/bill/backend/api";
+import { apiFetch } from "../api/http";   // ⭐ NEW — centralized API wrapper
 
 const Dashboard = ({ user, ready }) => {
   // -----------------------------
@@ -25,23 +26,17 @@ const Dashboard = ({ user, ready }) => {
   // -----------------------------
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState(null);
-
   const [bills, setBills] = useState([]);
   const [upcoming, setUpcoming] = useState([]);
-
   const [startingAmount, setStartingAmount] = useState(0);
   const [reserveAmount, setReserveAmount] = useState(0);
-
   const [columnOrder, setColumnOrder] = useState(defaultOrder);
 
-  // Layout mode after applying settings + responsive logic
   const [effectiveLayout, setEffectiveLayout] = useState("full");
 
-  // Sorting
   const [sortField, setSortField] = useState("due_day");
   const [sortDirection, setSortDirection] = useState("asc");
 
-  // Modals
   const [editingBillId, setEditingBillId] = useState(null);
   const [addingBill, setAddingBill] = useState(false);
   const [addingUpcoming, setAddingUpcoming] = useState(false);
@@ -55,22 +50,21 @@ const Dashboard = ({ user, ready }) => {
 
     setLoading(true);
 
-    Promise.all([
-      fetch(`${API}/settings.php?user_id=${user.id}`).then((r) => r.json()),
-      fetch(`${API}/bills.php?user_id=${user.id}`).then((r) => r.json()),
-      fetch(`${API}/upcoming_expenses.php?user_id=${user.id}`).then((r) =>
-        r.json()
-      ),
-    ])
-      .then(([settingsRes, billsRes, upcomingRes]) => {
+    async function loadAll() {
+      try {
+        const [settingsRes, billsRes, upcomingRes] = await Promise.all([
+          apiFetch(`settings.php?user_id=${user.id}`),
+          apiFetch(`bills.php?user_id=${user.id}`),
+          apiFetch(`upcoming_expenses.php?user_id=${user.id}`)
+        ]);
+
+        // SETTINGS
         if (settingsRes.success) {
           const s = settingsRes.settings;
           setSettings(s);
-
           setStartingAmount(parseFloat(s.starting_amount || 0));
           setReserveAmount(parseFloat(s.reserve_amount || 0));
 
-          // Load column order or fallback
           if (s.column_order) {
             try {
               setColumnOrder(JSON.parse(s.column_order));
@@ -82,6 +76,7 @@ const Dashboard = ({ user, ready }) => {
           }
         }
 
+        // BILLS
         if (billsRes.success) {
           const initialized = (billsRes.bills || []).map((bill) => ({
             ...bill,
@@ -92,6 +87,7 @@ const Dashboard = ({ user, ready }) => {
           setBills(initialized);
         }
 
+        // UPCOMING
         if (upcomingRes.success) {
           const initialized = (upcomingRes.expenses || []).map((item) => ({
             ...item,
@@ -99,10 +95,14 @@ const Dashboard = ({ user, ready }) => {
           }));
           setUpcoming(initialized);
         }
+      } catch (err) {
+        console.error("Dashboard load error:", err);
+      }
 
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+      setLoading(false);
+    }
+
+    loadAll();
   }, [ready, user]);
 
   // -----------------------------
@@ -166,17 +166,21 @@ const Dashboard = ({ user, ready }) => {
   // -----------------------------
   // Column order saving
   // -----------------------------
-  const saveColumnOrder = (order) => {
+  const saveColumnOrder = async (order) => {
     setColumnOrder(order);
 
-    fetch(`${API}/settings.php`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        user_id: user.id,
-        column_order: order,
-      }),
-    });
+    try {
+      await apiFetch("settings.php", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: user.id,
+          column_order: order,
+        }),
+      });
+    } catch (err) {
+      console.error("Failed to save column order:", err);
+    }
   };
 
   // -----------------------------
@@ -216,53 +220,68 @@ const Dashboard = ({ user, ready }) => {
   // -----------------------------
   // Save starting + reserve amounts
   // -----------------------------
-  const saveStartingAmount = (value) => {
-    fetch(`${API}/settings.php`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        user_id: user.id,
-        starting_amount: value,
-      }),
-    });
+  const saveStartingAmount = async (value) => {
+    try {
+      await apiFetch("settings.php", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: user.id,
+          starting_amount: value,
+        }),
+      });
+    } catch (err) {
+      console.error("Failed to save starting amount:", err);
+    }
   };
 
-  const saveReserveAmount = (value) => {
-    fetch(`${API}/settings.php`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        user_id: user.id,
-        reserve_amount: value,
-      }),
-    });
+  const saveReserveAmount = async (value) => {
+    try {
+      await apiFetch("settings.php", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: user.id,
+          reserve_amount: value,
+        }),
+      });
+    } catch (err) {
+      console.error("Failed to save reserve amount:", err);
+    }
   };
 
   // -----------------------------
   // Delete handlers
   // -----------------------------
-  const deleteUpcoming = (id) => {
-    fetch(`${API}/upcoming_expenses.php`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, user_id: user.id }),
-    }).then(() => {
+  const deleteUpcoming = async (id) => {
+    try {
+      await apiFetch("upcoming_expenses.php", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, user_id: user.id }),
+      });
+
       setUpcoming((prev) => prev.filter((item) => item.id !== id));
-    });
+    } catch (err) {
+      console.error("Failed to delete upcoming expense:", err);
+    }
   };
 
   const handleDeleteBill = async (id) => {
     if (!window.confirm("Delete this bill?")) return;
 
-    const response = await fetch(`${API}/bills.php`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, user_id: user.id }),
-    });
+    try {
+      const data = await apiFetch("bills.php", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, user_id: user.id }),
+      });
 
-    const data = await response.json();
-    if (data.success) {
-      setBills((prev) => prev.filter((b) => b.id !== id));
+      if (data.success) {
+        setBills((prev) => prev.filter((b) => b.id !== id));
+      }
+    } catch (err) {
+      console.error("Failed to delete bill:", err);
     }
   };
 
@@ -310,7 +329,9 @@ const Dashboard = ({ user, ready }) => {
           type="number"
           step="0.01"
           value={startingAmount}
-          onChange={(e) => setStartingAmount(parseFloat(e.target.value || 0))}
+          onChange={(e) =>
+            setStartingAmount(parseFloat(e.target.value || 0))
+          }
           onBlur={() => saveStartingAmount(startingAmount)}
           className="form-control"
           style={{ width: "200px" }}
@@ -326,7 +347,9 @@ const Dashboard = ({ user, ready }) => {
           type="number"
           step="0.01"
           value={reserveAmount}
-          onChange={(e) => setReserveAmount(parseFloat(e.target.value || 0))}
+          onChange={(e) =>
+            setReserveAmount(parseFloat(e.target.value || 0))
+          }
           onBlur={() => saveReserveAmount(reserveAmount)}
           className="form-control"
           style={{ width: "200px" }}
@@ -336,7 +359,6 @@ const Dashboard = ({ user, ready }) => {
       {/* UPCOMING EXPENSES */}
       <div style={{ marginBottom: "40px" }}>
         <h3>Upcoming Expenses</h3>
-
         <button
           className="btn btn-success"
           style={{ marginBottom: "15px" }}
@@ -360,7 +382,6 @@ const Dashboard = ({ user, ready }) => {
       {/* BILLS */}
       <div style={{ marginBottom: "40px" }}>
         <h3>Bills</h3>
-
         <button
           className="btn btn-success"
           onClick={() => setAddingBill(true)}
@@ -375,16 +396,14 @@ const Dashboard = ({ user, ready }) => {
       {/* TOTALS */}
       <div style={{ marginBottom: "40px" }}>
         <h3>Totals</h3>
-
         <p>
-          <strong>Total Bills Hold:</strong> {helpers.money(totalBillsHold)}
+          <strong>Total Bills Hold:</strong>{" "}
+          {helpers.money(totalBillsHold)}
         </p>
-
         <p>
           <strong>Total Upcoming Hold:</strong>{" "}
           {helpers.money(totalUpcomingHold)}
         </p>
-
         <p>
           <strong>Total Hold Per Check:</strong>{" "}
           {helpers.money(totalHoldPerCheck)}
@@ -393,7 +412,9 @@ const Dashboard = ({ user, ready }) => {
         <h4>
           Free to Spend:{" "}
           {helpers.money(
-            startingAmount - reserveAmount - (totalBillsHold + totalUpcomingHold)
+            startingAmount -
+              reserveAmount -
+              (totalBillsHold + totalUpcomingHold)
           )}
         </h4>
       </div>
@@ -413,7 +434,9 @@ const Dashboard = ({ user, ready }) => {
               setEditingBillId(null);
               if (updatedBill) {
                 setBills((prev) =>
-                  prev.map((b) => (b.id === updatedBill.id ? updatedBill : b))
+                  prev.map((b) =>
+                    b.id === updatedBill.id ? updatedBill : b
+                  )
                 );
               }
             }}
@@ -459,7 +482,9 @@ const Dashboard = ({ user, ready }) => {
               if (updatedExpense) {
                 setUpcoming((prev) =>
                   prev.map((e) =>
-                    e.id === updatedExpense.id ? updatedExpense : e
+                    e.id === updatedExpense.id
+                      ? updatedExpense
+                      : e
                   )
                 );
               }

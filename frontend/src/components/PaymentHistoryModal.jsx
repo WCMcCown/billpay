@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
+import { apiFetch } from "../api/http";
 
 function PaymentHistoryModal({ show, item, onClose }) {
   const [payments, setPayments] = useState([]);
 
   useEffect(() => {
     if (show && item) {
-      fetch(`http://127.0.0.1/bill/backend/api/get_payments.php?item_id=${item.id}`)
-        .then(res => res.json())
-        .then(data => setPayments(data));
+      const data = await apiFetch(`get_payments.php?item_id=${item.id}`);
+        setPayments(data);
     }
   }, [show, item]);
 

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { apiFetch } from "../api/http";
 
 export default function AddUpcomingExpense({ user, onClose }) {
     const [expense, setExpense] = useState({
@@ -7,8 +8,6 @@ export default function AddUpcomingExpense({ user, onClose }) {
         due_date: "",
         notes: ""
     });
-
-    const API = "http://127.0.0.1/bill/backend/api";
 
     useEffect(() => {
         const handleKey = (e) => {
@@ -23,17 +22,20 @@ export default function AddUpcomingExpense({ user, onClose }) {
     }, [expense]);
 
 
-    const handleSave = () => {
-        fetch(`${API}/upcoming_expenses.php`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ...expense, user_id: user.id })
-        })
-            .then(res => res.json())
-            .then(data => {
-                onClose(data.expense || null);   // ⭐ send new expense back to Dashboard
+    const handleSave = async () => {
+        try {
+            const data = await apiFetch("upcoming_expenses.php", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ...expense, user_id: user.id })
             });
+
+            onClose(data.expense || null);
+        } catch (err) {
+            console.error("Failed to save upcoming expense:", err);
+        }
     };
+
 
     return (
         <>
