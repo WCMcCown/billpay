@@ -1,3 +1,4 @@
+//frontend/src/components/layouts/CardView.jsx
 import React, { useState } from "react";
 
 /**
