@@ -1,5 +1,6 @@
+// frontend/src/utils/sorting.js
 /**
- * sorting.js
+ * frontend/src/utils/sorting.js
  * ----------
  * Generic sorting engine for table data.
  *

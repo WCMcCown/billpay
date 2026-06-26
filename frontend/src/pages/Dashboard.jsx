@@ -1,3 +1,4 @@
+// Dashboard.jsx
 import React, { useEffect, useState, useMemo } from "react";
 
 import EditBill from "./EditBill";
@@ -10,6 +11,7 @@ import Modal from "../components/Modal";
 import BillsTableFull from "../components/layouts/BillsTableFull";
 import BillsTableStandard from "../components/layouts/BillsTableStandard";
 import BillsTableCompact from "../components/layouts/BillsTableCompact";
+import CardView from "../components/layouts/CardView";
 
 import DebtSummary from "../components/debt/DebtSummary";
 import DebtProjections from "../components/debt/DebtProjections";
@@ -300,11 +302,24 @@ const Dashboard = ({ user, ready }) => {
       onDeleteBill: handleDeleteBill,
     };
 
-    switch (effectiveLayout) {
+
+        switch (effectiveLayout) {
+      case "cards":
+        return (
+          <CardView
+            bills={sortedBills}
+            helpers={helpers}
+            onEditBill={setEditingBillId}
+            onDeleteBill={handleDeleteBill}
+          />
+        );
+
       case "compact":
         return <BillsTableCompact {...props} />;
+
       case "standard":
         return <BillsTableStandard {...props} />;
+
       case "full":
       default:
         return <BillsTableFull {...props} />;

@@ -1,26 +1,16 @@
+//frontend/src/components/layouts/BillsTableCompact.jsx
+
 import React from "react";
 import TableView from "./TableView";
-import columnConfig from "../../utils/columnConfig";
 import * as helpers from "../../utils/helpers";
 
-const BillsTableCompact = ({
-  bills,
-  columnOrder,
-  onColumnOrderChange,
-  onSort,
-  sortField,
-  sortDirection,
-  onEditBill,
-  onDeleteBill,
-}) => {
+const BillsTableCompact = (props) => {
+  const { money } = helpers;
+
   const renderCell = (bill, colKey) => {
     switch (colKey) {
-      case "name":
-        return bill.name;
-
-      case "amount":
-        return helpers.money(bill.amount);
-
+      case "name": return bill.name;
+      case "amount": return money(bill.amount);
       case "hold_amount":
         return (
           <input
@@ -28,54 +18,27 @@ const BillsTableCompact = ({
             step="0.01"
             value={bill.hold_amount ?? ""}
             onChange={(e) =>
+              bill.updateHold &&
               bill.updateHold(bill.id, parseFloat(e.target.value || 0))
             }
             style={{ width: "70px" }}
           />
         );
-
-      case "due_day":
-        return bill.due_day;
-
-      case "next_due":
-        return helpers.nextDueDate(bill.due_day);
-
-      case "notes":
-        return bill.notes || "";
-
-      case "actions":
-        return (
-          <div className="action-buttons">
-            <button
-              className="btn btn-sm btn-primary"
-              style={{ marginRight: "5px" }}
-              onClick={() => onEditBill(bill.id)}
-            >
-              Edit
-            </button>
-            <button
-              className="btn btn-sm btn-danger"
-              onClick={() => onDeleteBill(bill.id)}
-            >
-              Delete
-            </button>
-          </div>
-        );
-
-      default:
-        return "";
+      case "due_day": return bill.due_day;
+      default: return "";
     }
   };
 
   return (
     <TableView
-      data={bills}
-      columnOrder={columnOrder}
-      onColumnOrderChange={onColumnOrderChange}
-      onSort={onSort}
-      sortField={sortField}
-      sortDirection={sortDirection}
+      data={props.bills}          // ⭐ REQUIRED
+      columnOrder={props.columnOrder}
+      onColumnOrderChange={props.onColumnOrderChange}
+      onSort={props.onSort}
+      sortField={props.sortField}
+      sortDirection={props.sortDirection}
       renderCell={renderCell}
+      visibleColumns={["name", "amount", "hold_amount", "due_day"]}
     />
   );
 };

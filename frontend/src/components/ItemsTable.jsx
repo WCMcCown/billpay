@@ -1,3 +1,4 @@
+//frontend/src/components/ItemsTable.jsx
 import React from "react";
 
 /**

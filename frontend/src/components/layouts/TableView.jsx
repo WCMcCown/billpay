@@ -1,4 +1,6 @@
-import React, { useMemo } from "react";
+// frontend/src/components/layouts/TableView.jsx
+
+import React from "react";
 import { useDrag, useDrop } from "react-dnd";
 import columnConfig from "../../utils/columnConfig";
 
@@ -12,28 +14,32 @@ const TableView = ({
   sortField,
   sortDirection,
   renderCell,
+  visibleColumns, // optional
 }) => {
-  // -----------------------------
-  // Drag + Drop handlers
-  // -----------------------------
+  // ✅ Never let undefined blow up .map()
+  const safeData = Array.isArray(data) ? data : [];
+  const safeOrder = Array.isArray(columnOrder) ? columnOrder : [];
+
+  // If visibleColumns not provided, show everything in columnOrder
+  const safeVisible =
+    Array.isArray(visibleColumns) && visibleColumns.length > 0
+      ? safeOrder.filter((k) => visibleColumns.includes(k))
+      : safeOrder;
+
   const moveColumn = (dragKey, hoverKey) => {
     if (dragKey === hoverKey) return;
-
-    const newOrder = [...columnOrder];
+    const newOrder = [...safeOrder];
     const dragIndex = newOrder.indexOf(dragKey);
     const hoverIndex = newOrder.indexOf(hoverKey);
-
+    if (dragIndex === -1 || hoverIndex === -1) return;
     newOrder.splice(dragIndex, 1);
     newOrder.splice(hoverIndex, 0, dragKey);
-
-    onColumnOrderChange(newOrder);
+    onColumnOrderChange && onColumnOrderChange(newOrder);
   };
 
-  // -----------------------------
-  // Header Cell Component
-  // -----------------------------
   const HeaderCell = ({ colKey }) => {
     const col = columnConfig[colKey];
+    if (!col) return null;
 
     const [{ isDragging }, dragRef] = useDrag({
       type: DRAG_TYPE,
@@ -64,7 +70,7 @@ const TableView = ({
           textAlign: col.align || "left",
           whiteSpace: "nowrap",
         }}
-        onClick={() => col.sortable && onSort(col.key)}
+        onClick={() => col.sortable && onSort && onSort(col.key)}
       >
         {col.label}
         {col.sortable && sortField === col.key && (
@@ -76,28 +82,24 @@ const TableView = ({
     );
   };
 
-  // -----------------------------
-  // Render
-  // -----------------------------
   return (
     <table className="table table-striped sticky-table">
       <thead>
         <tr>
-          {columnOrder.map((colKey) => (
+          {safeVisible.map((colKey) => (
             <HeaderCell key={colKey} colKey={colKey} />
           ))}
         </tr>
       </thead>
-
       <tbody>
-        {data.map((row) => (
+        {safeData.map((row) => (
           <tr key={row.id}>
-            {columnOrder.map((colKey) => (
+            {safeVisible.map((colKey) => (
               <td
                 key={colKey}
-                style={{ textAlign: columnConfig[colKey].align || "left" }}
+                style={{ textAlign: columnConfig[colKey]?.align || "left" }}
               >
-                {renderCell(row, colKey)}
+                {renderCell ? renderCell(row, colKey) : row[colKey]}
               </td>
             ))}
           </tr>
