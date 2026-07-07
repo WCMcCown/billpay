@@ -14,6 +14,7 @@ const BillsTableFull = ({
   sortDirection,
   onEditBill,
   onDeleteBill,
+  onPayments,
 }) => {
   const {
     money,
@@ -103,6 +104,12 @@ const BillsTableFull = ({
       case "actions":
         return (
           <div className="action-buttons">
+            <button
+              className="btn btn-sm btn-info"
+              onClick={() => onPayments(bill.id)}
+          >
+              Payments
+          </button>
             <button
               className="btn btn-sm btn-primary"
               style={{ marginRight: "5px" }}

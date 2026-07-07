@@ -10,12 +10,25 @@ const NavBar = ({ user, setUser }) => {
         navigate("/login");
     };
 
+const closeNavbar = () => {
+    const navbar = document.getElementById("navbarNav");
+    if (!navbar) return;
+
+    // Only close if it's currently open
+    if (navbar.classList.contains("show")) {
+        const bsCollapse = window.bootstrap.Collapse.getInstance(navbar)
+            || new window.bootstrap.Collapse(navbar, { toggle: false });
+
+        bsCollapse.hide();
+    }
+};
+
     return (
         <nav className="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
             <div className="container-fluid">
 
                 {/* App Name */}
-                <Link className="navbar-brand" to="/">
+                <Link className="navbar-brand" to="/" onClick={closeNavbar}>
                     BillPilot
                 </Link>
 
@@ -35,25 +48,25 @@ const NavBar = ({ user, setUser }) => {
                         {user && (
                             <>
                                 <li className="nav-item">
-                                    <Link className="nav-link" to="/dashboard">
+                                    <Link className="nav-link" to="/dashboard" onClick={closeNavbar}>
                                         Dashboard
                                     </Link>
                                 </li>
 
                                 <li className="nav-item">
-                                    <Link className="nav-link" to="/add-upcoming">
+                                    <Link className="nav-link" to="/add-upcoming" onClick={closeNavbar}>
                                         Add Upcoming
                                     </Link>
                                 </li>
 
                                 <li className="nav-item">
-                                    <Link className="nav-link" to="/add-bill">
+                                    <Link className="nav-link" to="/add-bill" onClick={closeNavbar}>
                                         Add Bill
                                     </Link>
                                 </li>
 
                                 <li className="nav-item">
-                                    <Link className="nav-link" to="/settings">
+                                    <Link className="nav-link" to="/settings" onClick={closeNavbar}>
                                         Settings
                                     </Link>
                                 </li>

@@ -29,6 +29,12 @@ const BillsTableStandard = (props) => {
       case "actions":
         return (
           <div className="action-buttons">
+            <button
+                className="btn btn-sm btn-info"
+                onClick={() => onPayments(bill.id)}
+            >
+                Payments
+            </button>
             <button className="btn btn-sm btn-primary" onClick={() => props.onEditBill(bill.id)}>Edit</button>
             <button className="btn btn-sm btn-danger" onClick={() => props.onDeleteBill(bill.id)}>Delete</button>
           </div>

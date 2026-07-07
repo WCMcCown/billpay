@@ -15,6 +15,7 @@ const TableView = ({
   sortDirection,
   renderCell,
   visibleColumns, // optional
+  onPayments,
 }) => {
   // ✅ Never let undefined blow up .map()
   const safeData = Array.isArray(data) ? data : [];

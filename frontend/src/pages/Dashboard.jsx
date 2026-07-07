@@ -12,6 +12,7 @@ import BillsTableFull from "../components/layouts/BillsTableFull";
 import BillsTableStandard from "../components/layouts/BillsTableStandard";
 import BillsTableCompact from "../components/layouts/BillsTableCompact";
 import CardView from "../components/layouts/CardView";
+import PaymentsModal from "../components/PaymentsModal";
 
 import DebtSummary from "../components/debt/DebtSummary";
 import DebtProjections from "../components/debt/DebtProjections";
@@ -43,6 +44,7 @@ const Dashboard = ({ user, ready }) => {
   const [addingBill, setAddingBill] = useState(false);
   const [addingUpcoming, setAddingUpcoming] = useState(false);
   const [editingUpcomingId, setEditingUpcomingId] = useState(null);
+  const [paymentsBillId, setPaymentsBillId] = useState(null);
 
   // -----------------------------
   // Load settings + bills + upcoming
@@ -126,16 +128,28 @@ const Dashboard = ({ user, ready }) => {
       return;
     }
 
+    const getWidth = () =>
+      window.visualViewport?.width || window.innerWidth;
+
     const updateLayout = () => {
-      const w = window.innerWidth;
+      const w = getWidth();
       if (w < 768) setEffectiveLayout(layout_phone);
       else if (w < 1200) setEffectiveLayout(layout_tablet);
       else setEffectiveLayout(layout_desktop);
     };
 
+    // Run once on mount to set initial layout
     updateLayout();
+    window.refreshMatrix = () => loadAll();
+
+    // Desktop + mobile
     window.addEventListener("resize", updateLayout);
-    return () => window.removeEventListener("resize", updateLayout);
+    window.addEventListener("orientationchange", updateLayout);
+
+    return () => {
+        window.removeEventListener("resize", updateLayout);
+        window.removeEventListener("orientationchange", updateLayout);
+    };
   }, [settings]);
 
   // -----------------------------
@@ -300,6 +314,7 @@ const Dashboard = ({ user, ready }) => {
       sortDirection,
       onEditBill: setEditingBillId,
       onDeleteBill: handleDeleteBill,
+      onPayments: setPaymentsBillId,
     };
 
 
@@ -311,6 +326,7 @@ const Dashboard = ({ user, ready }) => {
             helpers={helpers}
             onEditBill={setEditingBillId}
             onDeleteBill={handleDeleteBill}
+            onPayments={setPaymentsBillId}
           />
         );
 
@@ -332,7 +348,7 @@ const Dashboard = ({ user, ready }) => {
   if (loading) return <div>Loading dashboard…</div>;
 
   return (
-    <div style={{ maxWidth: "1450px", margin: "0 auto" }}>
+    <div className="dashboard-container">
       <h2>Dashboard</h2>
 
       {/* STARTING AMOUNT */}
@@ -441,6 +457,32 @@ const Dashboard = ({ user, ready }) => {
       </div>
 
       {/* MODALS */}
+      
+      
+      {paymentsBillId && (
+        <Modal onClose={() => setPaymentsBillId(null)}>
+            <PaymentsModal
+                bill={bills.find(b => b.id === paymentsBillId)}
+                user={user}
+                onClose={() => setPaymentsBillId(null)}
+                fetchPayments={async (billId) =>
+                    apiFetch(`get_payments.php?bill_id=${billId}&user_id=${user.id}`)
+                        .then(res => res.payments || [])
+                }
+                onAddPayment={async (paymentData) =>
+                    apiFetch("add_payment.php", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            ...paymentData,
+                            user_id: user.id
+                        })
+                    })
+                }
+            />
+        </Modal>
+    )}
+
       {editingBillId && (
         <Modal onClose={() => setEditingBillId(null)}>
           <EditBill

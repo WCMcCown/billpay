@@ -27,6 +27,7 @@ const CardView = ({ bills, helpers, onEditBill, onDeleteBill }) => {
     interestPerPeriod,
     interestPerYear,
     payoffEstimate,
+    onPayments,
   } = helpers;
 
   const [expanded, setExpanded] = useState({});
@@ -168,6 +169,13 @@ const CardView = ({ bills, helpers, onEditBill, onDeleteBill }) => {
 
             {/* Actions */}
             <div style={{ marginTop: "15px" }}>
+              <button
+                className="btn btn-info"
+                style={{ marginRight: "10px" }}
+                onClick={() => onPayments(b.id)}
+            >
+                Payments
+            </button>
               <button
                 className="btn btn-primary"
                 style={{ marginRight: "10px" }}

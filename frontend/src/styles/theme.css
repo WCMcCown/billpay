@@ -154,11 +154,37 @@ select.form-input {
 }
 
 /* ========================================================================
+   RESPONSIVE LAYOUT
+   ======================================================================== */
+.dashboard-container {
+    max-width: 1450px;
+    margin: 0 auto;
+    padding: 0 16px; /* ⭐ default mobile padding */
+}
+
+/* Tablet */
+@media (min-width: 768px) {
+    .dashboard-container {
+        padding: 0 24px;
+    }
+}
+
+/* Desktop */
+@media (min-width: 1450px) {
+    .dashboard-container {
+        margin: 0 auto;
+        padding: 0; /* desktop stays clean and centered */
+    }
+}
+
+
+/* ========================================================================
    RESPONSIVE CARD GRID (Unified CardView)
    ======================================================================== */
 .card-grid {
   display: grid;
   gap: 20px;
+  padding: 12px 16px;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 }
 
@@ -259,4 +285,45 @@ select.form-input {
 .compact-table th {
   padding: 6px 8px !important;
   font-size: 0.85rem;
+}
+
+/* ========================================================================
+   BILL MATRIX STYLING
+   ======================================================================== */
+   .matrix-cell {
+  width: 32px;
+  height: 32px;
+  font-size: 18px;
+  vertical-align: middle !important;
+}
+
+.month-paid {
+  background-color: #c8f7c5;
+}
+
+.month-late {
+  background-color: #ffe9a8;
+}
+
+.month-partial {
+  background-color: #d0e7ff;
+}
+
+.month-deferred {
+  background-color: #eee;
+}
+
+.month-autopay {
+  background-color: #e0ffe0;
+}
+
+.month-unpaid {
+  background-color: #f5f5f5;
+}
+
+.month-details {
+  background: #fafafa;
+  padding: 15px;
+  border-radius: 6px;
+  border: 1px solid #ddd;
 }
